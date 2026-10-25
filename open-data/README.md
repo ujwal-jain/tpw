@@ -1,12 +1,14 @@
 # Instructions: generate the TPW synthetic outcome data
 
-Give this file to Claude (or follow it yourself) together with:
+Everything here lives in the `open-data/` folder of the repo. You need three files:
 
 - `generate_synthetic.py`: creates the synthetic files
 - `verify_results.py`: checks the output against the expected numbers below
-- `participants.csv`: the original HSI file "Participation Data Across 3 Organizations" (1,200 rows), downloaded from the TPW Supplementary Info doc and renamed
+- `participants.csv`: the original HSI file "Participation Data Across 3 Organizations" (1,200 rows), downloaded from the TPW Supplementary Info doc and renamed. It is not in the repo (it belongs to Hack for Social Impact and TPW, and `.gitignore` keeps it out). Download it and save it as `open-data/participants.csv`.
 
-## Context for Claude
+See `CONTRIBUTING.md` before proposing changes.
+
+## Context
 
 We are building a demo for Hack for Social Impact 2026 for Transformative Programming Works (TPW). The provided dataset only says who attended and completed a program. It has nothing about what happened after release. We generate a clearly labeled SYNTHETIC follow-up layer so the reporting tool can show recidivism, dollars saved, bed-years, credits, and ROI.
 
@@ -19,15 +21,16 @@ Rules that must not change:
 
 ## Steps
 
-1. Put the three files in one folder. Check that `participants.csv` has exactly these headers:
+1. Save `participants.csv` into `open-data/`, next to the two scripts. Check that it has exactly these headers:
    `participant_id,organization,sessions_attended,completed,age_group` and 1,200 data rows.
-2. Run:
+2. From the repo root, run:
    ```
+   cd open-data
    python generate_synthetic.py participants.csv
    ```
    Expected output: `Wrote 1200 outcome rows and 3 organization rows.`
-   It creates `outcomes_synthetic.csv` and `organizations_synthetic.csv` in the same folder.
-3. Run:
+   It creates (or overwrites) `outcomes_synthetic.csv` and `organizations_synthetic.csv` in `open-data/`. Both scripts read and write in the current folder, so always run them from inside `open-data/`. On macOS, use `python3` if `python` is not found.
+3. Still inside `open-data/`, run:
    ```
    python verify_results.py
    ```
@@ -99,6 +102,10 @@ All rule values are constants near the top of `generate_synthetic.py` (`P36_COMP
 - Check `SEED = 2026` and `AS_OF = date(2026, 10, 24)` in the script.
 - Check nobody sorted or filtered the input file. Row order matters because the random draws happen row by row.
 - Use Python 3.8 or later.
+
+## Contributing
+
+This folder is open to TPW's coalition organizations, so anyone can propose new fields, metrics, and generation rules. `participants.csv` belongs to Hack for Social Impact and TPW: download it separately as described above, and never commit it. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose and submit changes.
 
 ## Sources for the base rates
 
