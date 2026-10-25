@@ -1,21 +1,11 @@
 import Link from "next/link";
-import { DualLedger } from "@/components/dual-ledger";
 import { Spotlight, type Profile } from "@/components/spotlight";
 import { AnchorList, type Anchor } from "@/components/anchor-list";
 import { Reveal } from "@/components/reveal";
 import { Wordmark } from "@/components/wordmark";
-import { CompareLines, EnrollmentArea, TypeBars } from "@/components/charts";
+import { CompareLines } from "@/components/charts";
 import { ChartBlock, Kpi, KpiRow } from "@/components/ui";
-import {
-  costModelByYear,
-  costTotals,
-  employmentByYear,
-  enrollmentByYear,
-  outcomeByProgramType,
-  recidivismByYear,
-  rvrByYear,
-  summary,
-} from "@/lib/metrics";
+import { costModelByYear, costTotals, recidivismByYear, summary } from "@/lib/metrics";
 import { parseFilters } from "@/lib/filters";
 import {
   ANNUAL_INCARCERATION_COST,
@@ -82,50 +72,39 @@ const PROFILES: Profile[] = [
 
 export default async function Home() {
   const filters = parseFilters({});
-  const [s, years, recid, enroll, byType, rvr, employ] = await Promise.all([
+  const [s, years, recid] = await Promise.all([
     summary(filters),
     costModelByYear(filters),
     recidivismByYear(filters),
-    enrollmentByYear(filters),
-    outcomeByProgramType(filters),
-    rvrByYear(filters),
-    employmentByYear(filters),
   ]);
   const totals = costTotals(years, s.participants);
 
   // Derive the gap from the rounded rates the page actually prints, so "21% vs
   // 44%" never sits next to a gap of 24 points.
-  const gapPts =
-    Math.round(s.comparisonRecidivism) - Math.round(s.tpwRecidivism);
+  const gapPts = Math.round(s.comparisonRecidivism) - Math.round(s.tpwRecidivism);
 
-  const compareSeries = [
-    { label: "With programming", color: GREEN },
-    { label: "Without programming", color: MUTED },
-  ];
+  const campaignParticipants = Math.round(
+    CAMPAIGN_ANNUAL_DOLLARS / totals.costPerParticipant,
+  );
 
+  // Three points, each carrying a number this page already proved.
   const anchors: Anchor[] = [
     {
-      title: "Fiscal conservatism",
-      body: `Every dollar invested in verifiable rehabilitation returns ${totals.roiMultiple.toFixed(1)} dollars in avoided re-arrest, re-adjudication, and re-incarceration costs across the cohorts tracked here.`,
+      title: "It saves money",
+      body: "Returned to the state for every dollar spent, counting avoided incarceration alone.",
       figure: `${totals.roiMultiple.toFixed(1)}×`,
       href: "/savings-calculator",
     },
     {
-      title: "Public safety first",
-      body: `Participants return to custody at ${s.tpwRecidivism.toFixed(0)}% within three years against ${s.comparisonRecidivism.toFixed(0)}% for a risk-matched comparison group. Lower recidivism is fewer crimes committed and fewer people harmed.`,
+      title: "It prevents crime",
+      body: "Fewer people return to custody within three years. Fewer crimes, fewer victims.",
       figure: `−${gapPts}pts`,
       href: "#evidence",
     },
     {
-      title: "Workforce integration",
-      body: "California faces severe labor shortages in the skilled trades. Rehabilitation pipelines move people directly into those gaps, verified at 90 days post-release.",
+      title: "It fills jobs",
+      body: "More participants are working within 90 days of release, in trades the state cannot staff.",
       figure: `+${s.employmentLift.toFixed(0)}pts`,
-      href: "#evidence",
-    },
-    {
-      title: "Data transparency",
-      body: "Participants are tracked from enrollment through post-release milestones on a published schema, so every figure on this page can be audited rather than asserted.",
-      figure: s.participants.toLocaleString(),
       href: "#evidence",
     },
   ];
@@ -191,17 +170,7 @@ export default async function Home() {
         </section>
       </Reveal>
 
-      {/* 3 — Dual ledger */}
-      <Reveal>
-        <DualLedger
-          comparisonRecidivism={s.comparisonRecidivism}
-          tpwRecidivism={s.tpwRecidivism}
-          rvrReduction={s.rvrReduction}
-          employmentLift={s.employmentLift}
-        />
-      </Reveal>
-
-      {/* 4 — The evidence */}
+      {/* 3 — The evidence */}
       <section id="evidence" className="scroll-mt-16 border-t border-rule">
         <div className="shell section-y">
           <p className="eyebrow">The evidence</p>
@@ -212,8 +181,6 @@ export default async function Home() {
           <p className="measure mt-6 text-[17px] leading-relaxed text-muted">
             Every participant is measured against a risk-matched comparison group drawn
             from the same facilities, the same risk bands, and the same release years.
-            Recidivism is a {RECIDIVISM_WINDOW_YEARS}-year return-to-custody measure, and
-            only cohorts with a completed window appear here.
           </p>
 
           <div className="mt-16">
@@ -227,12 +194,12 @@ export default async function Home() {
               <Kpi
                 label="People served"
                 value={s.participants.toLocaleString()}
-                note={`${Math.round(s.creditDays / 365).toLocaleString()} years of earned milestone credit across these cohorts.`}
+                note={`Across release cohorts ${FIRST_COHORT_YEAR}–${LAST_COHORT_YEAR}.`}
               />
               <Kpi
-                label="Program completion"
-                value={`${s.completionRate.toFixed(0)}%`}
-                note="Share of enrollments finished, rather than withdrawn or still open."
+                label="Employed at 90 days"
+                value={`+${s.employmentLift.toFixed(0)}pts`}
+                note="Verified employment within 90 days of release, against the comparison group."
               />
               <Kpi
                 label="Net taxpayer savings"
@@ -243,50 +210,16 @@ export default async function Home() {
             </KpiRow>
           </div>
 
-          <div className="mt-24 space-y-24">
+          <div className="mt-24">
             <ChartBlock
               title="Return to custody within three years, by release cohort"
               note="The gap between these two lines is the entire argument. Both groups come from the same facilities and the same risk bands; one received programming."
-              series={compareSeries}
+              series={[
+                { label: "With programming", color: GREEN },
+                { label: "Without programming", color: MUTED },
+              ]}
             >
               <CompareLines data={recid} />
-            </ChartBlock>
-
-            <ChartBlock
-              title="People enrolled, by program type"
-              note="Unique participants touching each program type per cohort year."
-            >
-              <EnrollmentArea data={enroll} />
-            </ChartBlock>
-
-            <div className="grid gap-20 lg:grid-cols-2">
-              <ChartBlock
-                title="Recidivism by program type"
-                note="Dashed line marks the rate among people who received no programming."
-              >
-                <TypeBars
-                  data={byType}
-                  dataKey="recidivism"
-                  benchmark={s.comparisonRecidivism}
-                  benchmarkLabel="No programming"
-                />
-              </ChartBlock>
-
-              <ChartBlock
-                title="Employed within 90 days of release"
-                series={compareSeries}
-                note="Verified employment, participants against the comparison group."
-              >
-                <CompareLines data={employ} />
-              </ChartBlock>
-            </div>
-
-            <ChartBlock
-              title="Rule-violation reports per 100 people in custody"
-              note="In-custody safety is the metric corrections staff feel first. Lower is safer for everyone inside the facility."
-              series={compareSeries}
-            >
-              <CompareLines data={rvr} unit="rate" />
             </ChartBlock>
           </div>
 
@@ -296,7 +229,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 5 — Spotlight */}
+      {/* 4 — Spotlight */}
       <Reveal>
         <section className="border-t border-rule bg-band">
           <div className="shell section-y">
@@ -318,7 +251,7 @@ export default async function Home() {
         </section>
       </Reveal>
 
-      {/* 6 — Legislative imperative */}
+      {/* 5 — The policy decision */}
       <Reveal>
         <section className="border-t border-rule">
           <div className="shell section-y">
@@ -327,89 +260,55 @@ export default async function Home() {
               Recidivism is not an accident. It is a budget choice.
             </h2>
 
-            <p className="measure mt-9 text-[17px] leading-relaxed text-muted">
-              Every legislative session, California debates criminal justice through the
-              lens of fear or fiscal constraint. But the math is settled: starving
-              evidence-backed in-custody rehabilitation while fully funding failed
-              containment is neither tough on crime nor fiscally conservative. It is
-              negligence.
-            </p>
-
             <AnchorList anchors={anchors} />
-
-            <p className="mt-10 text-[13px] text-muted">
-              Figures reflect release cohorts {FIRST_COHORT_YEAR}–{LAST_COHORT_YEAR}, each
-              with a completed three-year follow-up window.
-            </p>
           </div>
         </section>
       </Reveal>
 
-      {/* 7 — The ask */}
-      <Reveal>
-        <section className="border-t border-rule bg-green">
-          <div className="shell section-y">
-            <p className="label-xs !text-ink/70">The ask</p>
-            <h2 className="display mt-6 max-w-[16ch]">One percent.</h2>
-
-            <p className="measure mt-9 text-[19px] leading-relaxed text-ink/80">
-              California currently directs about two tenths of one percent of its
-              corrections budget to rehabilitation programming. Raising that to one
-              percent — roughly {money(CAMPAIGN_ANNUAL_DOLLARS)} a year to community
-              organizations — is the entire ask. At the cost per participant measured on
-              this page, that funds{" "}
-              {Math.round(
-                CAMPAIGN_ANNUAL_DOLLARS / totals.costPerParticipant,
-              ).toLocaleString()}{" "}
-              people a year.
-            </p>
-
-            <Link
-              href="/savings-calculator"
-              className="mt-12 inline-block bg-ink px-7 py-3.5 text-[15px] font-medium text-paper transition-opacity hover:opacity-90"
-            >
-              Price it yourself →
-            </Link>
-          </div>
-        </section>
-      </Reveal>
-
-      {/* 8 — Closer */}
-      <section className="border-t border-rule">
+      {/* 6 — The ask. Last thing on the page. */}
+      <section className="border-t border-rule bg-green">
         <div className="shell section-y">
-          <h2 className="headline max-w-[18ch]">
-            Look at the ledger. Which side will you stand on?
-          </h2>
+          <p className="label-xs !text-ink/70">The ask</p>
+          <h2 className="display mt-6 max-w-[16ch]">One percent.</h2>
 
-          <p className="measure mt-8 text-[17px] leading-relaxed text-muted">
-            Whether you hold a legislative vote or capital to invest, doing nothing votes
-            for the cycle to continue. Stand with the programs proven to bring people home
-            for good.
+          <p className="measure mt-9 text-[19px] leading-relaxed text-ink/80">
+            California directs about two tenths of one percent of its corrections budget
+            to rehabilitation programming. Raising it to one percent —{" "}
+            {money(CAMPAIGN_ANNUAL_DOLLARS)} a year to community organizations — funds{" "}
+            {campaignParticipants.toLocaleString()} people a year at the cost measured on
+            this page.
           </p>
 
-          <div className="mt-16 grid gap-10 border-t border-rule pt-10 md:grid-cols-2 md:gap-0">
+          <Link
+            href="/savings-calculator"
+            className="mt-12 inline-block bg-ink px-7 py-3.5 text-[15px] font-medium text-paper transition-opacity hover:opacity-90"
+          >
+            Price it yourself →
+          </Link>
+
+          <div className="mt-20 grid gap-10 border-t border-ink/20 pt-10 md:grid-cols-2 md:gap-0">
             <div className="md:pr-14">
-              <p className="label-xs">For lawmakers & staff</p>
-              <p className="mt-4 text-[15px] leading-relaxed text-muted">
+              <p className="label-xs !text-ink/70">For lawmakers & staff</p>
+              <p className="mt-4 text-[15px] leading-relaxed text-ink/80">
                 District-level outcome data, cohort tables, and a briefing for your
                 committee.
               </p>
               <a
                 href="mailto:policy@tpwcoalition.org?subject=Legislative%20briefing%20%26%20district%20data"
-                className="mt-6 inline-block border-b-2 border-green pb-0.5 text-[15px] text-ink"
+                className="mt-6 inline-block border-b-2 border-ink pb-0.5 text-[15px] text-ink"
               >
                 Request a legislative briefing →
               </a>
             </div>
 
-            <div className="border-t border-rule pt-10 md:border-t-0 md:border-l md:pt-0 md:pl-14">
-              <p className="label-xs">For institutional funders</p>
-              <p className="mt-4 text-[15px] leading-relaxed text-muted">
-                Co-fund program expansion where the cost model shows the steepest return.
+            <div className="border-t border-ink/20 pt-10 md:border-t-0 md:border-l md:pt-0 md:pl-14">
+              <p className="label-xs !text-ink/70">For institutional funders</p>
+              <p className="mt-4 text-[15px] leading-relaxed text-ink/80">
+                Co-fund expansion where the cost model shows the steepest return.
               </p>
               <a
                 href="mailto:partners@tpwcoalition.org?subject=Coalition%20partnership"
-                className="mt-6 inline-block border-b-2 border-green pb-0.5 text-[15px] text-ink"
+                className="mt-6 inline-block border-b-2 border-ink pb-0.5 text-[15px] text-ink"
               >
                 Partner with the coalition →
               </a>

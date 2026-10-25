@@ -1,12 +1,9 @@
 "use client";
 
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   Line,
   LineChart,
   ReferenceLine,
@@ -15,7 +12,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { PROGRAM_TYPE_LABELS } from "@/lib/constants";
 
 const GREEN = "#74c088";
 const GOLD = "#efc75e";
@@ -103,79 +99,6 @@ export function CompareLines({
           dot={false}
         />
       </LineChart>
-    </ResponsiveContainer>
-  );
-}
-
-/** Unique participants enrolled, stacked by program type. */
-export function EnrollmentArea({ data }: { data: ({ year: number } & Record<string, number>)[] }) {
-  const types = Object.keys(PROGRAM_TYPE_LABELS);
-  // A single green ramp, dark to light. Enrollment is programming, so it stays
-  // in the intervention hue — gold is reserved for dollars.
-  const shades = ["#2f6b43", "#4a7c59", "#74c088", "#9fd3ad", "#c8e6d1"];
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <AreaChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-        {grid}
-        <XAxis dataKey="year" {...axis} />
-        <YAxis {...axis} width={54} />
-        <Tooltip content={<Tip fmt={(v) => v.toLocaleString()} />} cursor={{ stroke: RULE }} />
-        {types.map((t, i) => (
-          <Area
-            key={t}
-            type="monotone"
-            dataKey={t}
-            name={PROGRAM_TYPE_LABELS[t]}
-            stackId="1"
-            stroke={shades[i]}
-            fill={shades[i]}
-            fillOpacity={0.9}
-          />
-        ))}
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-
-/** Horizontal bars, one row per program type. */
-export function TypeBars({
-  data,
-  dataKey,
-  benchmark,
-  benchmarkLabel,
-}: {
-  data: { type: string; recidivism: number; employment: number }[];
-  dataKey: "recidivism" | "employment";
-  benchmark?: number;
-  benchmarkLabel?: string;
-}) {
-  const rows = data.map((d) => ({ ...d, label: PROGRAM_TYPE_LABELS[d.type] ?? d.type }));
-  return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={rows} layout="vertical" margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
-        <CartesianGrid horizontal={false} stroke={RULE} />
-        <XAxis type="number" {...axis} tickFormatter={pct} />
-        <YAxis type="category" dataKey="label" {...axis} width={132} />
-        <Tooltip content={<Tip fmt={pct} />} cursor={{ fill: CURSOR }} />
-        {benchmark !== undefined && (
-          <ReferenceLine
-            x={benchmark}
-            stroke={MUTED}
-            strokeDasharray="3 3"
-            label={{
-              value: benchmarkLabel,
-              fill: MUTED,
-              fontSize: 11,
-              position: "insideTopRight",
-            }}
-          />
-        )}
-        <Bar dataKey={dataKey} name={dataKey === "recidivism" ? "Recidivism" : "Employed at 90d"}>
-          {rows.map((r) => (
-            <Cell key={r.type} fill={GREEN} />
-          ))}
-        </Bar>
-      </BarChart>
     </ResponsiveContainer>
   );
 }

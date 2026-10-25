@@ -24,7 +24,9 @@ export function AnchorList({ anchors }: { anchors: Anchor[] }) {
 
           <div className="md:col-span-3 md:text-right">
             <Link href={a.href} className="group inline-block">
-              <span className="block text-[26px] leading-none text-green-ink">{a.figure}</span>
+              <span className="block font-[family-name:var(--font-poppins)] text-[clamp(2rem,3.2vw,2.75rem)] leading-none font-bold tracking-[-0.03em] text-green-ink">
+                {a.figure}
+              </span>
               <span className="mt-2 inline-block border-b border-rule pb-0.5 text-[13px] text-muted transition-colors group-hover:border-green group-hover:text-ink">
                 See the data →
               </span>
