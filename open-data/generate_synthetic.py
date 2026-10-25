@@ -21,10 +21,11 @@ random.seed(SEED)
 
 # ---------- 1. Organization table (one row per org, all invented) ----------
 ORGS = [
-    # name, program type, prison, county, yearly budget, RAC days per completion
-    ("Organization A", "Restorative justice circles", "Prison 1 (fictional)", "Sacramento", 180000, 30),
-    ("Organization B", "Arts and theater program", "Prison 2 (fictional)", "Los Angeles", 240000, 40),
-    ("Organization C", "Reentry job readiness", "Prison 3 (fictional)", "Fresno", 150000, 20),
+    # name, program type, prison, county, yearly budget, RAC days per completion,
+    # participants served in the reporting year (the denominator for cost per participant)
+    ("Organization A", "Restorative justice circles", "Prison 1 (fictional)", "Sacramento", 180000, 30, 75),
+    ("Organization B", "Arts and theater program", "Prison 2 (fictional)", "Los Angeles", 240000, 40, 80),
+    ("Organization C", "Reentry job readiness", "Prison 3 (fictional)", "Fresno", 150000, 20, 70),
 ]
 
 # ---------- 2. Rules for outcomes ----------
@@ -52,9 +53,10 @@ def main(path):
         w = csv.writer(f)
         w.writerow(["organization", "program_type", "prison", "county",
                     "annual_program_budget_usd", "rac_days_per_completion",
+                    "participants_served_in_reporting_year",
                     "reporting_year", "data_source"])
         for o in ORGS:
-            w.writerow([o[0], o[1], o[2], o[3], o[4], o[5], 2026, "SYNTHETIC"])
+            w.writerow([o[0], o[1], o[2], o[3], o[4], o[5], o[6], 2026, "SYNTHETIC"])
 
     rows = []
     for p in people:
