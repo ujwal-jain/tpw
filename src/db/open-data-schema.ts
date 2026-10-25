@@ -17,6 +17,9 @@ export const odOrganizations = pgTable("od_organizations", {
   county: text("county").notNull(),
   annualProgramBudgetUsd: integer("annual_program_budget_usd").notNull(),
   racDaysPerCompletion: integer("rac_days_per_completion").notNull(),
+  participantsServedInReportingYear: integer(
+    "participants_served_in_reporting_year",
+  ).notNull(),
   reportingYear: integer("reporting_year").notNull(),
   dataSource: text("data_source").notNull(),
 });

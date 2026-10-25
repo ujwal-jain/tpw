@@ -6,7 +6,6 @@ import {
   AVG_REINCARCERATION_TERM_YEARS,
   DAILY_INCARCERATION_COST,
   DISCLOSURE,
-  REPORTING_SPAN_YEARS,
 } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +50,7 @@ export default async function SavingsCalculator() {
             <Kpi
               label="Cost per person"
               value={money(h.costPerParticipant)}
-              note={`Estimated from ${money(h.spend / REPORTING_SPAN_YEARS)} of annual program budget across ${h.people.toLocaleString()} people.`}
+              note={`The three organizations report serving 225 people a year on ${money(h.spend / h.people * 225)} of combined annual budget.`}
             />
             <Kpi
               label="Return-to-prison gap"
@@ -83,7 +82,7 @@ export default async function SavingsCalculator() {
           />
           <Method
             k="Program spend"
-            v={`Each organization's annual budget across the ${REPORTING_SPAN_YEARS}-year release window. This is an estimate: the data gives a budget with no participant count for that year, which is why the return is stated as a whole number and not a decimal.`}
+            v="Each organization's annual budget divided by the people it reports serving that year, applied to everyone in the dataset."
           />
           <Method
             k="What it does not prove"

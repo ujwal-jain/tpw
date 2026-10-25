@@ -47,6 +47,9 @@ async function main() {
       county: o.county,
       annualProgramBudgetUsd: Number(o.annual_program_budget_usd),
       racDaysPerCompletion: Number(o.rac_days_per_completion),
+      participantsServedInReportingYear: Number(
+        o.participants_served_in_reporting_year,
+      ),
       reportingYear: Number(o.reporting_year),
       dataSource: o.data_source,
     })),

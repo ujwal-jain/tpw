@@ -4,7 +4,6 @@ import {
   ANNUAL_INCARCERATION_COST,
   AVG_REINCARCERATION_TERM_YEARS,
   DAILY_INCARCERATION_COST,
-  REPORTING_SPAN_YEARS,
 } from "./constants";
 
 /**
@@ -110,7 +109,10 @@ export async function headline(): Promise<Headline> {
   `);
 
   const [b] = await rows<Record<string, unknown>>(sql`
-    select sum(annual_program_budget_usd) as budget from od_organizations
+    select
+      sum(annual_program_budget_usd) as budget,
+      sum(participants_served_in_reporting_year) as served_per_year
+    from od_organizations
   `);
 
   const people = n(r.people);
@@ -130,10 +132,12 @@ export async function headline(): Promise<Headline> {
   const avertedValue =
     avertedReturns * ANNUAL_INCARCERATION_COST * AVG_REINCARCERATION_TERM_YEARS;
 
-  // The weakest input in the model: the org file reports an annual budget with
-  // no participant count for that year, so spend is the annual total stretched
-  // across the release window. Upstream issue #1 would replace this estimate.
-  const spend = n(b.budget) * REPORTING_SPAN_YEARS;
+  // Cost per person comes straight from the organization file now that it
+  // reports how many people each annual budget serves (upstream issue #1).
+  // Spend for this population is that rate applied to everyone in it.
+  const servedPerYear = n(b.served_per_year);
+  const costPerParticipant = servedPerYear ? n(b.budget) / servedPerYear : 0;
+  const spend = costPerParticipant * people;
 
   return {
     people,
@@ -151,7 +155,7 @@ export async function headline(): Promise<Headline> {
     avertedReturns,
     avertedValue,
     spend,
-    costPerParticipant: people ? spend / people : 0,
+    costPerParticipant,
     roi: spend ? (creditValue + avertedValue) / spend : 0,
   };
 }

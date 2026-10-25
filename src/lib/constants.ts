@@ -10,15 +10,6 @@ export const ANNUAL_INCARCERATION_COST = 106_000;
 /** Used to price earned credit days as avoided bed-days. */
 export const DAILY_INCARCERATION_COST = ANNUAL_INCARCERATION_COST / 365;
 
-/**
- * Releases in the dataset span Jan 2021 to Jun 2026. The organization file
- * reports an annual budget with no participant count for that year, so program
- * spend is the annual total stretched across this window. It is the weakest
- * input in the cost model — see upstream issue #1, which would replace it with
- * a real denominator. Until then, return per dollar is reported as "about 4x",
- * never to a decimal.
- */
-export const REPORTING_SPAN_YEARS = 5.5;
 
 /**
  * Average length of a return-to-custody term, in years. The conservative end of
