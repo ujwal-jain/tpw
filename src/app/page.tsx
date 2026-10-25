@@ -3,33 +3,38 @@ import { Spotlight, type Profile } from "@/components/spotlight";
 import { AnchorList, type Anchor } from "@/components/anchor-list";
 import { Reveal } from "@/components/reveal";
 import { Wordmark } from "@/components/wordmark";
-import { CompareLines } from "@/components/charts";
+import { CoverageBar, ReentryBars, ReoffenseWindows } from "@/components/charts";
 import { ChartBlock, Kpi, KpiRow } from "@/components/ui";
-import { costModelByYear, costTotals, recidivismByYear, summary } from "@/lib/metrics";
-import { parseFilters } from "@/lib/filters";
+import {
+  byOrganization,
+  followUpCoverage,
+  headline,
+  reentryAt90Days,
+  reoffenseByWindow,
+} from "@/lib/metrics";
 import {
   ANNUAL_INCARCERATION_COST,
   CAMPAIGN_ANNUAL_DOLLARS,
   DISCLOSURE,
-  FIRST_COHORT_YEAR,
-  LAST_COHORT_YEAR,
   PRISONS_FULLY_SERVED,
   PRISONS_TOTAL,
-  RECIDIVISM_WINDOW_YEARS,
   SHARE_WHO_REENTER,
+  STATEWIDE_RECIDIVISM,
 } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
 const GREEN = "#74c088";
-const MUTED = "#5f6360";
+const SPEND = "#3b3f3c";
 
-const money = (v: number) =>
-  v >= 1_000_000_000
-    ? `$${(v / 1_000_000_000).toFixed(2)}B`
-    : v >= 1_000_000
-      ? `$${(v / 1_000_000).toFixed(0)}M`
-      : `$${Math.round(v).toLocaleString()}`;
+const money = (v: number) => {
+  if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(2)}B`;
+  if (v >= 1_000_000) {
+    const m = v / 1_000_000;
+    return `$${Number.isInteger(m) ? m : m.toFixed(1)}M`;
+  }
+  return `$${Math.round(v).toLocaleString()}`;
+};
 
 const PROFILES: Profile[] = [
   {
@@ -71,40 +76,55 @@ const PROFILES: Profile[] = [
 ];
 
 export default async function Home() {
-  const filters = parseFilters({});
-  const [s, years, recid] = await Promise.all([
-    summary(filters),
-    costModelByYear(filters),
-    recidivismByYear(filters),
+  const [h, windows, coverage, reentry, orgs] = await Promise.all([
+    headline(),
+    reoffenseByWindow(),
+    followUpCoverage(),
+    reentryAt90Days(),
+    byOrganization(),
   ]);
-  const totals = costTotals(years, s.participants);
 
-  // Derive the gap from the rounded rates the page actually prints, so "21% vs
-  // 44%" never sits next to a gap of 24 points.
-  const gapPts = Math.round(s.comparisonRecidivism) - Math.round(s.tpwRecidivism);
-
+  const gapPts =
+    Math.round(h.reoff36NotCompleted) - Math.round(h.reoff36Completed);
   const campaignParticipants = Math.round(
-    CAMPAIGN_ANNUAL_DOLLARS / totals.costPerParticipant,
+    CAMPAIGN_ANNUAL_DOLLARS / h.costPerParticipant,
   );
 
-  // Three points, each carrying a number this page already proved.
+  const reentryData = [
+    {
+      measure: "Housed",
+      completed: reentry.housedCompleted,
+      notCompleted: reentry.housedNotCompleted,
+    },
+    {
+      measure: "Working or in training",
+      completed: reentry.workingCompleted,
+      notCompleted: reentry.workingNotCompleted,
+    },
+  ];
+
+  const groupSeries = [
+    { label: "Completed a program", color: GREEN },
+    { label: "Did not complete", color: SPEND },
+  ];
+
   const anchors: Anchor[] = [
     {
       title: "It saves money",
-      body: "Returned to the state for every dollar spent, counting avoided incarceration alone.",
-      figure: `${totals.roiMultiple.toFixed(1)}×`,
+      body: "Returned to the state for every dollar spent, counting avoided bed-days and avoided returns.",
+      figure: `~${h.roi.toFixed(0)}×`,
       href: "/savings-calculator",
     },
     {
       title: "It prevents crime",
-      body: "Fewer people return to custody within three years. Fewer crimes, fewer victims.",
+      body: "Fewer people reoffend within three years. Fewer crimes, fewer victims.",
       figure: `−${gapPts}pts`,
       href: "#evidence",
     },
     {
-      title: "It fills jobs",
-      body: "More participants are working within 90 days of release, in trades the state cannot staff.",
-      figure: `+${s.employmentLift.toFixed(0)}pts`,
+      title: "It shortens sentences earned",
+      body: `${h.creditDays.toLocaleString()} credit days earned — ${Math.round(h.bedYears)} bed-years the state does not pay for.`,
+      figure: `${Math.round(h.bedYears)}`,
       href: "#evidence",
     },
   ];
@@ -158,14 +178,19 @@ export default async function Home() {
                 label="of California's incarcerated citizens will reenter society"
               />
               <BigStat
-                value={`${s.comparisonRecidivism.toFixed(0)}%`}
-                label={`are reincarcerated within ${RECIDIVISM_WINDOW_YEARS} years of release without programming`}
+                value={`${STATEWIDE_RECIDIVISM}%`}
+                label="are reincarcerated within 3 years of release"
               />
               <BigStat
                 value={`${PRISONS_FULLY_SERVED} of ${PRISONS_TOTAL}`}
                 label="California prisons is fully served by community programming today"
               />
             </div>
+
+            <p className="mt-12 text-[13px] text-muted">
+              Statewide figures published by TPW. The outcome data below comes from three
+              coalition organizations.
+            </p>
           </div>
         </section>
       </Reveal>
@@ -174,57 +199,129 @@ export default async function Home() {
       <section id="evidence" className="scroll-mt-16 border-t border-rule">
         <div className="shell section-y">
           <p className="eyebrow">The evidence</p>
-          <h2 className="headline mt-5 max-w-[22ch]">
-            {s.participants.toLocaleString()} people, five release cohorts, one completed
-            follow-up window.
+          <h2 className="headline mt-5 max-w-[24ch]">
+            What three organizations can already show for{" "}
+            {h.people.toLocaleString()} people.
           </h2>
           <p className="measure mt-6 text-[17px] leading-relaxed text-muted">
-            Every participant is measured against a risk-matched comparison group drawn
-            from the same facilities, the same risk bands, and the same release years.
+            Everyone here enrolled in a program. The comparison is between people who
+            finished and people who did not — not a randomized control. Follow-up is
+            voluntary and still in progress, so every figure below shows how many people
+            it was measured on.
           </p>
 
           <div className="mt-16">
             <KpiRow>
               <Kpi
-                label="3-year recidivism"
-                value={`${s.tpwRecidivism.toFixed(0)}%`}
-                note={`${s.comparisonRecidivism.toFixed(0)}% without programming — a ${gapPts} point reduction.`}
+                label="Reoffense at 36 months"
+                value={`${h.reoff36Completed.toFixed(1)}%`}
+                note={`Among ${h.known36Completed} completers with an answer, against ${h.reoff36NotCompleted.toFixed(1)}% of ${h.known36NotCompleted} who did not complete.`}
                 accent
               />
               <Kpi
-                label="People served"
-                value={s.participants.toLocaleString()}
-                note={`Across release cohorts ${FIRST_COHORT_YEAR}–${LAST_COHORT_YEAR}.`}
+                label="Completion rate"
+                value={`${h.completionRate.toFixed(0)}%`}
+                note={`${h.completers.toLocaleString()} of ${h.people.toLocaleString()} people finished their program.`}
               />
               <Kpi
-                label="Employed at 90 days"
-                value={`+${s.employmentLift.toFixed(0)}pts`}
-                note="Verified employment within 90 days of release, against the comparison group."
+                label="Credit days earned"
+                value={h.creditDays.toLocaleString()}
+                note={`${Math.round(h.bedYears)} bed-years, worth about ${money(h.creditValue)} at the state's average daily cost.`}
               />
               <Kpi
-                label="Net taxpayer savings"
-                value={money(totals.netSavings)}
-                note="Incarceration cost averted, less every dollar spent on programming."
+                label="Return per dollar"
+                value={`~${h.roi.toFixed(0)}×`}
+                note="Avoided bed-days plus avoided returns, against estimated program spend."
                 accent
               />
             </KpiRow>
           </div>
 
-          <div className="mt-24">
+          <div className="mt-24 space-y-24">
             <ChartBlock
-              title="Return to custody within three years, by release cohort"
-              note="The gap between these two lines is the entire argument. Both groups come from the same facilities and the same risk bands; one received programming."
-              series={[
-                { label: "With programming", color: GREEN },
-                { label: "Without programming", color: MUTED },
-              ]}
+              title="Reoffense rate at 6, 12, and 36 months"
+              note={`Arrest, conviction, or return to prison. The gap widens the longer people are followed. Measured on ${windows[0].knownCompleted + windows[0].knownNotCompleted} people at 6 months, falling to ${windows[2].knownCompleted + windows[2].knownNotCompleted} at 36 months as follow-up is still in progress.`}
+              series={groupSeries}
             >
-              <CompareLines data={recid} />
+              <ReoffenseWindows data={windows} />
             </ChartBlock>
+
+            <ChartBlock
+              title="Where the follow-up stands"
+              note={`All ${h.people.toLocaleString()} people, by what is known at the 36-month mark. Most have simply not been out long enough to ask. The distance between consent and an answer is the part that needs funding.`}
+            >
+              <CoverageBar data={coverage} />
+            </ChartBlock>
+
+            <ChartBlock
+              title="Housing and work at 90 days after release"
+              note={`Measured on the ${(reentry.knownCompleted + reentry.knownNotCompleted).toLocaleString()} people who gave an answer.`}
+              series={groupSeries}
+            >
+              <ReentryBars data={reentryData} />
+            </ChartBlock>
+
+            <section className="border-t border-rule pt-8">
+              <h2 className="font-[family-name:var(--font-poppins)] text-[19px] font-bold tracking-[-0.02em]">
+                By organization
+              </h2>
+              <div className="mt-8 overflow-x-auto">
+                <table className="w-full min-w-[680px] text-left text-[14px]">
+                  <thead>
+                    <tr className="label-xs">
+                      <th className="border-b border-rule pb-3 font-semibold">
+                        Organization
+                      </th>
+                      <th className="border-b border-rule pb-3 font-semibold">People</th>
+                      <th className="border-b border-rule pb-3 font-semibold">
+                        Completed
+                      </th>
+                      <th className="border-b border-rule pb-3 font-semibold">
+                        Reoffense at 36mo
+                      </th>
+                      <th className="border-b border-rule pb-3 font-semibold">
+                        Credit days
+                      </th>
+                      <th className="border-b border-rule pb-3 font-semibold">Budget</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orgs.map((o) => (
+                      <tr key={o.organization}>
+                        <td className="border-b border-rule py-4">
+                          <span className="block text-ink">{o.organization}</span>
+                          <span className="text-[13px] text-muted">
+                            {o.programType} · {o.county}
+                          </span>
+                        </td>
+                        <td className="border-b border-rule py-4">{o.people}</td>
+                        <td className="border-b border-rule py-4">
+                          {o.completionRate.toFixed(0)}%
+                        </td>
+                        <td className="border-b border-rule py-4">
+                          <span className="text-green-ink">
+                            {o.reoff36.toFixed(1)}%
+                          </span>
+                          <span className="text-muted"> (n={o.known36})</span>
+                        </td>
+                        <td className="border-b border-rule py-4">
+                          {o.creditDays.toLocaleString()}
+                        </td>
+                        <td className="border-b border-rule py-4">
+                          {money(o.budget)}/yr
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
 
-          <p className="mt-16 border-t border-rule pt-6 text-[13px] text-muted">
-            {DISCLOSURE}
+          <p className="measure mt-16 border-t border-rule pt-6 text-[13px] leading-relaxed text-muted">
+            {DISCLOSURE} People who finish a program may differ from people who enroll and
+            do not, in ways this data cannot show. A lower reoffense rate among completers
+            is an association, not proof that the program caused it.
           </p>
         </div>
       </section>
@@ -274,9 +371,9 @@ export default async function Home() {
           <p className="measure mt-9 text-[19px] leading-relaxed text-ink/80">
             California directs about two tenths of one percent of its corrections budget
             to rehabilitation programming. Raising it to one percent —{" "}
-            {money(CAMPAIGN_ANNUAL_DOLLARS)} a year to community organizations — funds{" "}
-            {campaignParticipants.toLocaleString()} people a year at the cost measured on
-            this page.
+            {money(CAMPAIGN_ANNUAL_DOLLARS)} a year to community organizations — would
+            fund roughly {campaignParticipants.toLocaleString()} people a year at what
+            these three organizations spend per person.
           </p>
 
           <Link

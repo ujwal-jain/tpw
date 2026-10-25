@@ -7,6 +7,19 @@
 /** Average annual cost per incarcerated person, California (LAO). */
 export const ANNUAL_INCARCERATION_COST = 106_000;
 
+/** Used to price earned credit days as avoided bed-days. */
+export const DAILY_INCARCERATION_COST = ANNUAL_INCARCERATION_COST / 365;
+
+/**
+ * Releases in the dataset span Jan 2021 to Jun 2026. The organization file
+ * reports an annual budget with no participant count for that year, so program
+ * spend is the annual total stretched across this window. It is the weakest
+ * input in the cost model — see upstream issue #1, which would replace it with
+ * a real denominator. Until then, return per dollar is reported as "about 4x",
+ * never to a decimal.
+ */
+export const REPORTING_SPAN_YEARS = 5.5;
+
 /**
  * Average length of a return-to-custody term, in years. The conservative end of
  * the published range — it is what lands return-per-dollar on the coalition's
@@ -28,8 +41,9 @@ export const STATEWIDE_POPULATION = 94_000;
 export const FIRST_COHORT_YEAR = 2018;
 export const LAST_COHORT_YEAR = 2022;
 
-/** TPW's published figures, mirrored so the charts corroborate them. */
+/** TPW's published statewide figures, used to frame the case. */
 export const SHARE_WHO_REENTER = 95;
+export const STATEWIDE_RECIDIVISM = 44;
 export const PRISONS_TOTAL = 31;
 export const PRISONS_FULLY_SERVED = 1;
 
@@ -39,13 +53,10 @@ export const TARGET_REHAB_BUDGET_SHARE = 0.01;
 export const CAMPAIGN_ANNUAL_DOLLARS = 140_000_000;
 export const CURRENT_ANNUAL_DOLLARS = 28_000_000;
 
-export const PROGRAM_TYPE_LABELS: Record<string, string> = {
-  education: "Education",
-  vocational: "Vocational trades",
-  cbt: "Cognitive behavioral",
-  substance: "Substance recovery",
-  restorative: "Restorative justice",
-};
+/** People TPW projects the 1% Campaign would reach. Shown beside our own
+ *  estimate so the two can be compared rather than silently disagree. */
+export const TPW_CAMPAIGN_REACH = 95_215;
+
 
 export const DISCLOSURE =
   "Illustrative dataset — modeled to match outcomes published by TPW and CDCR.";

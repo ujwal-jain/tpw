@@ -58,6 +58,21 @@ export const SOURCES: { claim: string; citation: string }[] = [
     citation: `Cohorts stop at ${LAST_COHORT_YEAR} so every figure reflects a completed three-year follow-up window.`,
   },
   {
+    claim: "Outcome data from three coalition organizations",
+    citation:
+      "Participation records for 1,200 people provided by Hack for Social Impact and TPW. The post-release follow-up layer is generated and carries data_source = SYNTHETIC on every row; see open-data/README.md for the generator and its base rates.",
+  },
+  {
+    claim: "Base rates behind the generated follow-up layer",
+    citation:
+      "CDCR Statewide Recidivism Report FY 2018-19 (21.1% for RAC-eligible programs) and CDCR Recidivism Rates for Individuals with Rehabilitative Program Achievements FY 2019-20 (~40% comparison groups).",
+  },
+  {
+    claim: "Completers compared with non-completers",
+    citation:
+      "Not a randomized control. People who finish a program may differ from people who enroll and do not, in ways the data cannot show — the gap is an association, not proof of cause.",
+  },
+  {
     claim: "Participant outcome records",
     citation: DISCLOSURE + " No figure on this site describes an identifiable person.",
   },

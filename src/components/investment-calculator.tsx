@@ -5,6 +5,7 @@ import {
   CAMPAIGN_ANNUAL_DOLLARS,
   CURRENT_ANNUAL_DOLLARS,
   CURRENT_REHAB_BUDGET_SHARE,
+  TPW_CAMPAIGN_REACH,
   TARGET_REHAB_BUDGET_SHARE,
 } from "@/lib/constants";
 
@@ -20,24 +21,32 @@ const pctLabel = (share: number) => `${(share * 100).toFixed(share < 0.01 ? 1 : 
 
 /**
  * The slider is annual state investment, because that is the line item a
- * legislator actually moves. Everything else is derived from the observed
- * dataset: cost per participant and the recidivism gap both come from the
- * cohorts on this site, not from assumptions typed in here.
+ * legislator actually moves. Everything else derives from the open-data layer:
+ * cost per person, completion rate, the return-to-prison gap, and credit days
+ * all come from the three organizations' records, not from assumptions typed
+ * in here. The return is shown as a whole number because program spend is an
+ * estimate — see upstream issue #1.
  */
 export function InvestmentCalculator({
   costPerParticipant,
-  gapFraction,
-  avertedCostPerAvertedReturn,
+  completionRate,
+  returnedGap,
+  creditValuePerPerson,
+  avertedCostPerReturn,
 }: {
   costPerParticipant: number;
-  gapFraction: number;
-  avertedCostPerAvertedReturn: number;
+  completionRate: number;
+  returnedGap: number;
+  creditValuePerPerson: number;
+  avertedCostPerReturn: number;
 }) {
   const [dollars, setDollars] = useState(CAMPAIGN_ANNUAL_DOLLARS);
 
   const participants = dollars / costPerParticipant;
-  const avertedReturns = participants * gapFraction;
-  const avertedCost = avertedReturns * avertedCostPerAvertedReturn;
+  // Only completers carry the return-to-prison gap.
+  const avertedReturns = participants * completionRate * returnedGap;
+  const avertedCost =
+    avertedReturns * avertedCostPerReturn + participants * creditValuePerPerson;
   const net = avertedCost - dollars;
   const roi = dollars ? avertedCost / dollars : 0;
   const share =
@@ -95,7 +104,7 @@ export function InvestmentCalculator({
             label="Return-to-custody terms averted"
             value={Math.round(avertedReturns).toLocaleString()}
           />
-          <Stat label="Incarceration cost averted" value={big(avertedCost)} gold />
+          <Stat label="Incarceration cost avoided" value={big(avertedCost)} gold />
           <Stat label="Net savings to the state" value={big(net)} gold />
         </dl>
       </div>
@@ -108,9 +117,10 @@ export function InvestmentCalculator({
         and keeps <span className="text-gold-ink">{big(net)}</span> the state would
         otherwise spend putting them back inside.
         <span className="block pt-3 text-[15px] font-normal tracking-normal text-muted">
-          A {roi.toFixed(1)}× return, counting avoided incarceration alone.
+          About a {roi.toFixed(0)}× return, counting only sentence credits earned and
+          returns to prison that do not happen.
           {atCampaign &&
-            " This is the 1% Campaign — raising California's rehabilitation budget from 0.2% to 1%."}
+            ` This is the 1% Campaign — raising California's rehabilitation budget from 0.2% to 1%. TPW projects ${TPW_CAMPAIGN_REACH.toLocaleString()} people reached at this funding level; the figure above is drawn from three organizations' actual cost per person, and is the more conservative of the two.`}
         </span>
       </p>
     </section>

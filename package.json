@@ -9,8 +9,8 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx src/db/seed.ts",
-    "db:reset": "docker compose down -v && docker compose up -d && sleep 5 && npm run db:push && npm run db:seed"
+    "db:load": "tsx src/db/load-open-data.ts",
+    "db:reset": "docker compose down -v && docker compose up -d && sleep 5 && npm run db:push && npm run db:load"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",

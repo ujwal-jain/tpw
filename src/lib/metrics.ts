@@ -1,274 +1,266 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import type { Filters } from "./filters";
-import { ANNUAL_INCARCERATION_COST, AVG_REINCARCERATION_TERM_YEARS } from "./constants";
+import {
+  ANNUAL_INCARCERATION_COST,
+  AVG_REINCARCERATION_TERM_YEARS,
+  DAILY_INCARCERATION_COST,
+  REPORTING_SPAN_YEARS,
+} from "./constants";
 
 /**
- * Every query here compares programmed participants against the risk-matched
- * comparison group held in the same table. A program-type filter narrows the
- * programmed arm only — the comparison arm stays whole, because shrinking it
- * to "people enrolled in welding" would be a group that does not exist.
+ * Every metric here reads the open-data layer loaded from `open-data/`.
+ *
+ * Two things shape all of it. There is no comparison group: the contrast is
+ * people who completed a program against people who enrolled and did not, which
+ * is self-selection, not a control. And follow-up is incomplete — only 388 of
+ * 1,200 people have a known 36-month answer — so every rate carries the
+ * denominator it was computed from, and no caller may render one without it.
+ *
+ * Completion is `credit_days_earned > 0`, because non-completers always receive
+ * zero RAC days. Issue #2 upstream would replace that inference.
  */
-const scope = (f: Filters) => sql`
-  p.cohort_year between ${f.from} and ${f.to}
-  and (${f.facilityId}::int is null or p.facility_id = ${f.facilityId})
-  and (
-    ${f.programType}::text is null
-    or p.is_comparison
-    or exists (
-      select 1 from enrollments e
-      join programs pr on pr.id = e.program_id
-      where e.participant_id = p.id and pr.type = ${f.programType}
-    )
-  )
-`;
 
-/**
- * Enrollment spend prorated by time actually enrolled. Programming is in
- * custody, so an enrollment that is still open stops costing at release —
- * without that cap, open enrollments accrue cost forever and deflate the ROI.
- */
-const spendExpr = sql`
-  sum(
-    greatest(
-      (least(coalesce(e.ended_on, o.released_on), o.released_on) - e.started_on)::numeric / 365.0,
-      0
-    ) * pr.annual_cost_per_participant_cents / 100.0
-  )
-`;
+const REOFFENSE = sql`('arrest','conviction','returned')`;
+const KNOWN = sql`('arrest','conviction','returned','none')`;
 
 const rows = async <T>(q: ReturnType<typeof sql>): Promise<T[]> =>
   (await db.execute(q)) as unknown as T[];
 
 const n = (v: unknown) => Number(v ?? 0);
 
-export type YearPair = { year: number; tpw: number; comparison: number; tpwN: number };
+export type WindowRow = {
+  window: string;
+  months: number;
+  completed: number;
+  notCompleted: number;
+  knownCompleted: number;
+  knownNotCompleted: number;
+};
 
-export async function recidivismByYear(f: Filters): Promise<YearPair[]> {
-  const r = await rows<Record<string, unknown>>(sql`
-    select p.cohort_year as year,
-           avg(o.recidivated_3yr::int) filter (where not p.is_comparison) as tpw,
-           avg(o.recidivated_3yr::int) filter (where p.is_comparison) as comparison,
-           count(*) filter (where not p.is_comparison) as tpw_n
-    from participants p join outcomes o on o.participant_id = p.id
-    where ${scope(f)}
-    group by 1 order by 1
-  `);
-  return r.map((x) => ({
-    year: n(x.year),
-    tpw: n(x.tpw) * 100,
-    comparison: n(x.comparison) * 100,
-    tpwN: n(x.tpw_n),
-  }));
-}
+/**
+ * Any reoffense — arrest, conviction, or return — at each follow-up window.
+ * The widening gap across windows is the strongest signal in this dataset.
+ */
+export async function reoffenseByWindow(): Promise<WindowRow[]> {
+  const windows = [
+    { col: sql`outcome_6mo`, label: "6 months", months: 6 },
+    { col: sql`outcome_12mo`, label: "12 months", months: 12 },
+    { col: sql`outcome_36mo`, label: "36 months", months: 36 },
+  ];
 
-export async function employmentByYear(f: Filters): Promise<YearPair[]> {
-  const r = await rows<Record<string, unknown>>(sql`
-    select p.cohort_year as year,
-           avg(o.employed_at_90d::int) filter (where not p.is_comparison) as tpw,
-           avg(o.employed_at_90d::int) filter (where p.is_comparison) as comparison,
-           count(*) filter (where not p.is_comparison) as tpw_n
-    from participants p join outcomes o on o.participant_id = p.id
-    where ${scope(f)}
-    group by 1 order by 1
-  `);
-  return r.map((x) => ({
-    year: n(x.year),
-    tpw: n(x.tpw) * 100,
-    comparison: n(x.comparison) * 100,
-    tpwN: n(x.tpw_n),
-  }));
-}
-
-/** Rule-violation reports per 100 people in custody — the staff-safety metric. */
-export async function rvrByYear(f: Filters): Promise<YearPair[]> {
-  const r = await rows<Record<string, unknown>>(sql`
-    select p.cohort_year as year,
-           avg(o.rvr_count) filter (where not p.is_comparison) as tpw,
-           avg(o.rvr_count) filter (where p.is_comparison) as comparison,
-           count(*) filter (where not p.is_comparison) as tpw_n
-    from participants p join outcomes o on o.participant_id = p.id
-    where ${scope(f)}
-    group by 1 order by 1
-  `);
-  return r.map((x) => ({
-    year: n(x.year),
-    tpw: n(x.tpw) * 100,
-    comparison: n(x.comparison) * 100,
-    tpwN: n(x.tpw_n),
-  }));
-}
-
-export type EnrollmentYear = { year: number } & Record<string, number>;
-
-export async function enrollmentByYear(f: Filters): Promise<EnrollmentYear[]> {
-  const r = await rows<Record<string, unknown>>(sql`
-    select p.cohort_year as year, pr.type as type, count(distinct p.id) as n
-    from participants p
-    join enrollments e on e.participant_id = p.id
-    join programs pr on pr.id = e.program_id
-    where ${scope(f)} and not p.is_comparison
-    group by 1, 2 order by 1
-  `);
-  const byYear = new Map<number, EnrollmentYear>();
-  for (const x of r) {
-    const y = n(x.year);
-    const row = byYear.get(y) ?? ({ year: y } as EnrollmentYear);
-    row[String(x.type)] = n(x.n);
-    byYear.set(y, row);
+  const out: WindowRow[] = [];
+  for (const w of windows) {
+    const [r] = await rows<Record<string, unknown>>(sql`
+      select
+        count(*) filter (where credit_days_earned > 0 and ${w.col} in ${KNOWN}) as known_c,
+        count(*) filter (where credit_days_earned = 0 and ${w.col} in ${KNOWN}) as known_n,
+        count(*) filter (where credit_days_earned > 0 and ${w.col} in ${REOFFENSE}) as reoff_c,
+        count(*) filter (where credit_days_earned = 0 and ${w.col} in ${REOFFENSE}) as reoff_n
+      from od_outcomes
+    `);
+    const knownC = n(r.known_c);
+    const knownN = n(r.known_n);
+    out.push({
+      window: w.label,
+      months: w.months,
+      completed: knownC ? (n(r.reoff_c) / knownC) * 100 : 0,
+      notCompleted: knownN ? (n(r.reoff_n) / knownN) * 100 : 0,
+      knownCompleted: knownC,
+      knownNotCompleted: knownN,
+    });
   }
-  return [...byYear.values()].sort((a, b) => a.year - b.year);
+  return out;
 }
 
-export type ProgramTypeOutcome = {
-  type: string;
-  recidivism: number;
-  employment: number;
-  participants: number;
-};
-
-export async function outcomeByProgramType(f: Filters): Promise<ProgramTypeOutcome[]> {
-  const r = await rows<Record<string, unknown>>(sql`
-    select pr.type as type,
-           avg(o.recidivated_3yr::int) as recid,
-           avg(o.employed_at_90d::int) as emp,
-           count(distinct p.id) as n
-    from participants p
-    join outcomes o on o.participant_id = p.id
-    join enrollments e on e.participant_id = p.id
-    join programs pr on pr.id = e.program_id
-    where ${scope(f)} and not p.is_comparison
-    group by 1 order by 2
-  `);
-  return r.map((x) => ({
-    type: String(x.type),
-    recidivism: n(x.recid) * 100,
-    employment: n(x.emp) * 100,
-    participants: n(x.n),
-  }));
-}
-
-export type Summary = {
-  tpwRecidivism: number;
-  comparisonRecidivism: number;
-  gap: number;
-  participants: number;
+export type Headline = {
+  people: number;
+  completers: number;
   completionRate: number;
-  employmentLift: number;
+  /** Any reoffense at 36 months. */
+  reoff36Completed: number;
+  reoff36NotCompleted: number;
+  known36Completed: number;
+  known36NotCompleted: number;
+  /** Returned to prison only — the coalition's primary definition. */
+  returned36Completed: number;
+  returned36NotCompleted: number;
   creditDays: number;
-  rvrReduction: number;
+  bedYears: number;
+  creditValue: number;
+  avertedReturns: number;
+  avertedValue: number;
+  spend: number;
+  costPerParticipant: number;
+  roi: number;
 };
 
-export async function summary(f: Filters): Promise<Summary> {
-  const [o] = await rows<Record<string, unknown>>(sql`
-    select avg(o.recidivated_3yr::int) filter (where not p.is_comparison) as tpw_recid,
-           avg(o.recidivated_3yr::int) filter (where p.is_comparison) as cmp_recid,
-           avg(o.employed_at_90d::int) filter (where not p.is_comparison) as tpw_emp,
-           avg(o.employed_at_90d::int) filter (where p.is_comparison) as cmp_emp,
-           avg(o.rvr_count) filter (where not p.is_comparison) as tpw_rvr,
-           avg(o.rvr_count) filter (where p.is_comparison) as cmp_rvr,
-           count(*) filter (where not p.is_comparison) as participants
-    from participants p join outcomes o on o.participant_id = p.id
-    where ${scope(f)}
+export async function headline(): Promise<Headline> {
+  const [r] = await rows<Record<string, unknown>>(sql`
+    select
+      count(*) as people,
+      count(*) filter (where credit_days_earned > 0) as completers,
+      sum(credit_days_earned) as credit_days,
+      count(*) filter (where credit_days_earned > 0 and outcome_36mo in ${KNOWN}) as known_c,
+      count(*) filter (where credit_days_earned = 0 and outcome_36mo in ${KNOWN}) as known_n,
+      count(*) filter (where credit_days_earned > 0 and outcome_36mo in ${REOFFENSE}) as reoff_c,
+      count(*) filter (where credit_days_earned = 0 and outcome_36mo in ${REOFFENSE}) as reoff_n,
+      count(*) filter (where credit_days_earned > 0 and outcome_36mo = 'returned') as ret_c,
+      count(*) filter (where credit_days_earned = 0 and outcome_36mo = 'returned') as ret_n
+    from od_outcomes
   `);
 
-  const [e] = await rows<Record<string, unknown>>(sql`
-    select avg((e.status = 'completed')::int) as completion,
-           sum(e.credit_days_earned) as credit_days
-    from participants p
-    join enrollments e on e.participant_id = p.id
-    join programs pr on pr.id = e.program_id
-    where ${scope(f)} and not p.is_comparison
-      and (${f.programType}::text is null or pr.type = ${f.programType})
+  const [b] = await rows<Record<string, unknown>>(sql`
+    select sum(annual_program_budget_usd) as budget from od_organizations
   `);
 
-  const tpwRvr = n(o.tpw_rvr);
-  const cmpRvr = n(o.cmp_rvr);
+  const people = n(r.people);
+  const completers = n(r.completers);
+  const knownC = n(r.known_c);
+  const knownN = n(r.known_n);
+
+  const returned36Completed = knownC ? (n(r.ret_c) / knownC) * 100 : 0;
+  const returned36NotCompleted = knownN ? (n(r.ret_n) / knownN) * 100 : 0;
+
+  const creditDays = n(r.credit_days);
+  const creditValue = creditDays * DAILY_INCARCERATION_COST;
+
+  // Returns averted applies the returned-only gap to everyone who completed.
+  const avertedReturns =
+    completers * ((returned36NotCompleted - returned36Completed) / 100);
+  const avertedValue =
+    avertedReturns * ANNUAL_INCARCERATION_COST * AVG_REINCARCERATION_TERM_YEARS;
+
+  // The weakest input in the model: the org file reports an annual budget with
+  // no participant count for that year, so spend is the annual total stretched
+  // across the release window. Upstream issue #1 would replace this estimate.
+  const spend = n(b.budget) * REPORTING_SPAN_YEARS;
 
   return {
-    tpwRecidivism: n(o.tpw_recid) * 100,
-    comparisonRecidivism: n(o.cmp_recid) * 100,
-    gap: (n(o.cmp_recid) - n(o.tpw_recid)) * 100,
-    participants: n(o.participants),
-    completionRate: n(e?.completion) * 100,
-    employmentLift: (n(o.tpw_emp) - n(o.cmp_emp)) * 100,
-    creditDays: n(e?.credit_days),
-    rvrReduction: cmpRvr ? ((cmpRvr - tpwRvr) / cmpRvr) * 100 : 0,
+    people,
+    completers,
+    completionRate: people ? (completers / people) * 100 : 0,
+    reoff36Completed: knownC ? (n(r.reoff_c) / knownC) * 100 : 0,
+    reoff36NotCompleted: knownN ? (n(r.reoff_n) / knownN) * 100 : 0,
+    known36Completed: knownC,
+    known36NotCompleted: knownN,
+    returned36Completed,
+    returned36NotCompleted,
+    creditDays,
+    bedYears: creditDays / 365,
+    creditValue,
+    avertedReturns,
+    avertedValue,
+    spend,
+    costPerParticipant: people ? spend / people : 0,
+    roi: spend ? (creditValue + avertedValue) / spend : 0,
   };
 }
 
-export type CostYear = {
-  year: number;
-  spend: number;
-  avertedCost: number;
-  avertedCases: number;
-  netSavings: number;
-  cumulativeNet: number;
+export type CoverageRow = { status: string; label: string; count: number };
+
+const COVERAGE_LABELS: Record<string, string> = {
+  pending: "Too recent to ask",
+  none: "Answered — no reoffense",
+  not_tracked: "Never consented to follow-up",
+  no_response: "Consented, did not answer",
+  returned: "Returned to prison",
+  conviction: "New conviction",
+  arrest: "Arrested",
 };
 
-export async function costModelByYear(f: Filters): Promise<CostYear[]> {
-  const [recid, spend] = await Promise.all([
-    recidivismByYear(f),
-    rows<Record<string, unknown>>(sql`
-      select p.cohort_year as year, ${spendExpr} as spend
-      from participants p
-      join outcomes o on o.participant_id = p.id
-      join enrollments e on e.participant_id = p.id
-      join programs pr on pr.id = e.program_id
-      where ${scope(f)} and not p.is_comparison
-        and (${f.programType}::text is null or pr.type = ${f.programType})
-      group by 1 order by 1
-    `),
-  ]);
+/** Where the 1,200 people stand at the 36-month mark. Shown, not buried. */
+export async function followUpCoverage(): Promise<CoverageRow[]> {
+  const r = await rows<Record<string, unknown>>(sql`
+    select outcome_36mo as status, count(*) as count
+    from od_outcomes group by 1
+  `);
+  const order = Object.keys(COVERAGE_LABELS);
+  return r
+    .map((x) => ({
+      status: String(x.status),
+      label: COVERAGE_LABELS[String(x.status)] ?? String(x.status),
+      count: n(x.count),
+    }))
+    .sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
+}
 
-  const spendByYear = new Map(spend.map((x) => [n(x.year), n(x.spend)]));
-  let cumulative = 0;
+export type Reentry = {
+  housedCompleted: number;
+  housedNotCompleted: number;
+  workingCompleted: number;
+  workingNotCompleted: number;
+  knownCompleted: number;
+  knownNotCompleted: number;
+};
 
-  return recid.map((r) => {
-    const avertedCases = ((r.comparison - r.tpw) / 100) * r.tpwN;
-    const avertedCost =
-      avertedCases * ANNUAL_INCARCERATION_COST * AVG_REINCARCERATION_TERM_YEARS;
-    const yearSpend = spendByYear.get(r.year) ?? 0;
-    const netSavings = avertedCost - yearSpend;
-    cumulative += netSavings;
+/** Housing and work at 90 days, among people who gave an answer. */
+export async function reentryAt90Days(): Promise<Reentry> {
+  const [r] = await rows<Record<string, unknown>>(sql`
+    select
+      count(*) filter (where credit_days_earned > 0) as known_c,
+      count(*) filter (where credit_days_earned = 0) as known_n,
+      count(*) filter (where credit_days_earned > 0 and housed_90d = 'yes') as housed_c,
+      count(*) filter (where credit_days_earned = 0 and housed_90d = 'yes') as housed_n,
+      count(*) filter (where credit_days_earned > 0 and working_or_training_90d = 'yes') as work_c,
+      count(*) filter (where credit_days_earned = 0 and working_or_training_90d = 'yes') as work_n
+    from od_outcomes
+    where housed_90d in ('yes','no')
+  `);
+  const kc = n(r.known_c);
+  const kn = n(r.known_n);
+  return {
+    housedCompleted: kc ? (n(r.housed_c) / kc) * 100 : 0,
+    housedNotCompleted: kn ? (n(r.housed_n) / kn) * 100 : 0,
+    workingCompleted: kc ? (n(r.work_c) / kc) * 100 : 0,
+    workingNotCompleted: kn ? (n(r.work_n) / kn) * 100 : 0,
+    knownCompleted: kc,
+    knownNotCompleted: kn,
+  };
+}
+
+export type OrgRow = {
+  organization: string;
+  programType: string;
+  county: string;
+  people: number;
+  completionRate: number;
+  known36: number;
+  reoff36: number;
+  creditDays: number;
+  budget: number;
+};
+
+export async function byOrganization(): Promise<OrgRow[]> {
+  const r = await rows<Record<string, unknown>>(sql`
+    select
+      o.organization,
+      g.program_type,
+      g.county,
+      g.annual_program_budget_usd as budget,
+      count(*) as people,
+      count(*) filter (where o.credit_days_earned > 0) as completers,
+      sum(o.credit_days_earned) as credit_days,
+      count(*) filter (where o.credit_days_earned > 0 and o.outcome_36mo in ${KNOWN}) as known_c,
+      count(*) filter (where o.credit_days_earned > 0 and o.outcome_36mo in ${REOFFENSE}) as reoff_c
+    from od_outcomes o
+    join od_organizations g on g.organization = o.organization
+    group by 1, 2, 3, 4
+    order by 1
+  `);
+
+  return r.map((x) => {
+    const people = n(x.people);
+    const knownC = n(x.known_c);
     return {
-      year: r.year,
-      spend: yearSpend,
-      avertedCost,
-      avertedCases,
-      netSavings,
-      cumulativeNet: cumulative,
+      organization: String(x.organization),
+      programType: String(x.program_type),
+      county: String(x.county),
+      people,
+      completionRate: people ? (n(x.completers) / people) * 100 : 0,
+      known36: knownC,
+      reoff36: knownC ? (n(x.reoff_c) / knownC) * 100 : 0,
+      creditDays: n(x.credit_days),
+      budget: n(x.budget),
     };
   });
-}
-
-export type CostTotals = {
-  spend: number;
-  avertedCost: number;
-  avertedCases: number;
-  netSavings: number;
-  roiMultiple: number;
-  costPerAverted: number;
-  costPerParticipant: number;
-};
-
-export function costTotals(years: CostYear[], participants: number): CostTotals {
-  const spend = years.reduce((s, y) => s + y.spend, 0);
-  const avertedCost = years.reduce((s, y) => s + y.avertedCost, 0);
-  const avertedCases = years.reduce((s, y) => s + y.avertedCases, 0);
-  return {
-    spend,
-    avertedCost,
-    avertedCases,
-    netSavings: avertedCost - spend,
-    roiMultiple: spend ? avertedCost / spend : 0,
-    costPerAverted: avertedCases ? spend / avertedCases : 0,
-    costPerParticipant: participants ? spend / participants : 0,
-  };
-}
-
-export async function facilityOptions() {
-  return rows<{ id: number; name: string }>(sql`
-    select id, name from facilities order by name
-  `);
 }

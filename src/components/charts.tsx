@@ -4,9 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,10 +11,8 @@ import {
 } from "recharts";
 
 const GREEN = "#74c088";
-const GOLD = "#efc75e";
 const MUTED = "#5f6360";
 const RULE = "#e3e6e1";
-const INK = "#0f0f0f";
 const SPEND = "#3b3f3c";
 const CURSOR = "#f4f7f3";
 
@@ -59,94 +54,105 @@ function Tip({ active, label, payload, fmt = (v) => v.toFixed(1) }: TipProps) {
 }
 
 const pct = (v: number) => `${v.toFixed(1)}%`;
-const money = (v: number) =>
-  v >= 1_000_000 ? `$${(v / 1_000_000).toFixed(1)}M` : `$${Math.round(v).toLocaleString()}`;
 
-/** Participants vs risk-matched comparison group, over release cohorts. */
-export function CompareLines({
-  data,
-  unit = "pct",
-  tpwLabel = "TPW participants",
-  comparisonLabel = "Comparison group",
-}: {
-  data: { year: number; tpw: number; comparison: number }[];
-  unit?: "pct" | "rate";
-  tpwLabel?: string;
-  comparisonLabel?: string;
-}) {
-  const fmt = unit === "pct" ? pct : (v: number) => v.toFixed(0);
-  return (
-    <ResponsiveContainer width="100%" height={320}>
-      <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-        {grid}
-        <XAxis dataKey="year" {...axis} />
-        <YAxis {...axis} tickFormatter={fmt} width={54} />
-        <Tooltip content={<Tip fmt={fmt} />} cursor={{ stroke: RULE }} />
-        <Line
-          type="monotone"
-          dataKey="comparison"
-          name={comparisonLabel}
-          stroke={MUTED}
-          strokeWidth={2}
-          dot={false}
-        />
-        <Line
-          type="monotone"
-          dataKey="tpw"
-          name={tpwLabel}
-          stroke={GREEN}
-          strokeWidth={2}
-          dot={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-}
-
-/** Program spend against incarceration cost averted, per cohort year. */
-export function SpendVsAverted({
+/** Any reoffense at each follow-up window, completers vs non-completers. */
+export function ReoffenseWindows({
   data,
 }: {
-  data: { year: number; spend: number; avertedCost: number }[];
+  data: {
+    window: string;
+    completed: number;
+    notCompleted: number;
+    knownCompleted: number;
+    knownNotCompleted: number;
+  }[];
 }) {
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+      <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -12 }} barGap={6}>
         {grid}
-        <XAxis dataKey="year" {...axis} />
-        <YAxis {...axis} tickFormatter={money} width={64} />
-        <Tooltip content={<Tip fmt={money} />} cursor={{ fill: CURSOR }} />
-        <Bar dataKey="spend" name="Program spend" fill={SPEND} />
-        <Bar dataKey="avertedCost" name="Incarceration cost averted" fill={GOLD} />
+        <XAxis dataKey="window" {...axis} />
+        <YAxis {...axis} tickFormatter={pct} width={54} />
+        <Tooltip content={<Tip fmt={pct} />} cursor={{ fill: CURSOR }} />
+        <Bar dataKey="notCompleted" name="Did not complete" fill={SPEND} />
+        <Bar dataKey="completed" name="Completed a program" fill={GREEN} />
       </BarChart>
     </ResponsiveContainer>
   );
 }
 
-/** Cumulative net savings, with the break-even crossing marked. */
-export function CumulativeNet({ data }: { data: { year: number; cumulativeNet: number }[] }) {
+/**
+ * One bar over everyone in the dataset, split by 36-month follow-up status.
+ * Outcomes are ink; the unanswered segments are neutral, because "we have not
+ * asked yet" is neither a good nor a bad result.
+ */
+const COVERAGE_FILL: Record<string, string> = {
+  none: GREEN,
+  returned: "#0f0f0f",
+  conviction: "#3b3f3c",
+  arrest: "#6b716c",
+  pending: "#d8dcd7",
+  no_response: "#c2c8c2",
+  not_tracked: "#aab1ab",
+};
+
+export function CoverageBar({
+  data,
+}: {
+  data: { status: string; label: string; count: number }[];
+}) {
+  const total = data.reduce((s, d) => s + d.count, 0);
+
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+    <div>
+      <div className="flex h-10 w-full overflow-hidden">
+        {data.map((d) => (
+          <div
+            key={d.status}
+            title={`${d.label}: ${d.count}`}
+            style={{
+              width: `${(d.count / total) * 100}%`,
+              background: COVERAGE_FILL[d.status] ?? MUTED,
+            }}
+          />
+        ))}
+      </div>
+
+      <dl className="mt-8 grid gap-x-10 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+        {data.map((d) => (
+          <div key={d.status} className="flex items-baseline gap-3">
+            <span
+              className="mt-1 h-3 w-3 shrink-0"
+              style={{ background: COVERAGE_FILL[d.status] ?? MUTED }}
+              aria-hidden
+            />
+            <div>
+              <dt className="text-[14px] text-ink">{d.count.toLocaleString()}</dt>
+              <dd className="text-[13px] leading-snug text-muted">{d.label}</dd>
+            </div>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+/** Housing and work at 90 days, completers vs non-completers. */
+export function ReentryBars({
+  data,
+}: {
+  data: { measure: string; completed: number; notCompleted: number }[];
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -12 }} barGap={6}>
         {grid}
-        <XAxis dataKey="year" {...axis} />
-        <YAxis {...axis} tickFormatter={money} width={64} />
-        <Tooltip content={<Tip fmt={money} />} cursor={{ stroke: RULE }} />
-        <ReferenceLine
-          y={0}
-          stroke={INK}
-          strokeWidth={1}
-          label={{ value: "Break-even", fill: MUTED, fontSize: 11, position: "insideTopLeft" }}
-        />
-        <Line
-          type="monotone"
-          dataKey="cumulativeNet"
-          name="Cumulative net savings"
-          stroke={GOLD}
-          strokeWidth={2.5}
-          dot={{ r: 2.5, fill: GOLD, strokeWidth: 0 }}
-        />
-      </LineChart>
+        <XAxis dataKey="measure" {...axis} />
+        <YAxis {...axis} tickFormatter={pct} width={54} />
+        <Tooltip content={<Tip fmt={pct} />} cursor={{ fill: CURSOR }} />
+        <Bar dataKey="notCompleted" name="Did not complete" fill={SPEND} />
+        <Bar dataKey="completed" name="Completed a program" fill={GREEN} />
+      </BarChart>
     </ResponsiveContainer>
   );
 }
