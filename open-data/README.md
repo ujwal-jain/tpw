@@ -78,7 +78,8 @@ Other per-org numbers:
 
 | Column | Rule |
 |---|---|
-| Organization table | Invented: program type, fictional prison, county, yearly budget ($150K to $240K), RAC days per completion (A 30, B 40, C 20) |
+| Organization table | Invented: program type, fictional prison, county, yearly budget ($150K to $240K), RAC days per completion (A 30, B 40, C 20), participants served in the reporting year (A 75, B 80, C 70) |
+| Cost per participant (ROI) | `annual_program_budget_usd / participants_served_in_reporting_year`, both for the same reporting year: A $2,400, B $3,000, C about $2,143. This is the denominator of return per dollar: (value of credit days earned + value of returns averted) ÷ (cost per participant × participants). |
 | `release_date` | Random date between Jan 1, 2021 and mid-2026 |
 | `contact_consent` | Yes for 85% of completers, 70% of non-completers |
 | `credit_days_earned` | Completers get their org's RAC days, non-completers 0 |
