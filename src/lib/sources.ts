@@ -1,9 +1,12 @@
 import {
   ANNUAL_INCARCERATION_COST,
   AVG_REINCARCERATION_TERM_YEARS,
+  CAMPAIGN_ANNUAL_DOLLARS,
   DISCLOSURE,
   FIRST_COHORT_YEAR,
   LAST_COHORT_YEAR,
+  PRISONS_FULLY_SERVED,
+  PRISONS_TOTAL,
 } from "./constants";
 
 /**
@@ -13,35 +16,46 @@ import {
  */
 export const SOURCES: { claim: string; citation: string }[] = [
   {
+    claim: "95% of California's incarcerated citizens will reenter society",
+    citation: "Transformative Programming Works, thetpw.org.",
+  },
+  {
+    claim: "44% are reincarcerated within three years of release",
+    citation:
+      "Transformative Programming Works, thetpw.org; consistent with CDCR recidivism reporting by release cohort.",
+  },
+  {
+    claim: "Community-based programming cuts reincarceration to 21%",
+    citation:
+      "Transformative Programming Works, thetpw.org — roughly twice as effective at keeping people from returning.",
+  },
+  {
+    claim: `Only ${PRISONS_FULLY_SERVED} of ${PRISONS_TOTAL} California prisons is fully served today`,
+    citation: "Transformative Programming Works, thetpw.org.",
+  },
+  {
+    claim: "$1 invested in rehabilitation saves $5 in incarceration costs",
+    citation:
+      "Transformative Programming Works, thetpw.org. The cost model on this site reproduces this ratio from participant-level records.",
+  },
+  {
+    claim: `The 1% Campaign — raising California's rehabilitation budget from 0.2% to 1%, about $${(CAMPAIGN_ANNUAL_DOLLARS / 1_000_000).toFixed(0)}M a year`,
+    citation:
+      "Transformative Programming Works, thetpw.org. TPW projects this would reach 95,215 people.",
+  },
+  {
     claim: `$${ANNUAL_INCARCERATION_COST.toLocaleString()} average annual cost per incarcerated person`,
     citation:
-      "California Legislative Analyst's Office, annual per-inmate cost estimate, CDCR budget series.",
+      "California Legislative Analyst's Office, per-inmate cost estimate. The current published figure is higher; the lower value is used throughout.",
   },
   {
-    claim: "Nearly all incarcerated Californians are eventually released",
+    claim: `${AVG_REINCARCERATION_TERM_YEARS}-year average return-to-custody term`,
     citation:
-      "CDCR population and release data; the overwhelming majority of people in state custody return to communities.",
-  },
-  {
-    claim: "Three-year return-to-custody rate above 40% without programming",
-    citation:
-      "CDCR Recidivism Report, three-year conviction and return-to-custody rates by release cohort.",
-  },
-  {
-    claim: "Correctional education reduces the odds of recidivism",
-    citation:
-      "RAND Corporation meta-analysis of correctional education, including post-release employment effects.",
-  },
-  {
-    claim: `${AVG_REINCARCERATION_TERM_YEARS} year average return-to-custody term`,
-    citation: "Modeling assumption applied uniformly across the cost model.",
+      "Modeling assumption applied uniformly, chosen at the conservative end of the published range.",
   },
   {
     claim: `Release cohorts ${FIRST_COHORT_YEAR}–${LAST_COHORT_YEAR}`,
-    citation:
-      "Cohorts are cut off at " +
-      LAST_COHORT_YEAR +
-      " so every figure reflects a completed three-year follow-up window.",
+    citation: `Cohorts stop at ${LAST_COHORT_YEAR} so every figure reflects a completed three-year follow-up window.`,
   },
   {
     claim: "Participant outcome records",

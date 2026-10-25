@@ -9,9 +9,9 @@ import { FIRST_COHORT_YEAR, LAST_COHORT_YEAR } from "../lib/constants";
  *
  * Every number comes from a fixed-seed LCG, never Math.random, so the whole
  * team and every demo machine see identical figures. Effect sizes are tuned to
- * published California / RAND correctional-program findings: participants land
- * near 28% three-year recidivism against ~45% for a risk-matched comparison
- * group, employment runs ~14pp higher, and the cost model clears 4x.
+ * the figures TPW publishes: 44% three-year reincarceration without
+ * programming, 21% with it, across roughly 19,000 programmed participants.
+ * The charts are supposed to corroborate thetpw.org, not compete with it.
  */
 let state = 20260424;
 const rnd = () => {
@@ -59,12 +59,16 @@ const RISK_BANDS = [
 ] as const;
 
 /** Three-year return-to-custody rate with no programming, by risk band. */
-const BASE_RECIDIVISM = { low: 0.32, med: 0.45, high: 0.58 };
+const BASE_RECIDIVISM = { low: 0.304, med: 0.421, high: 0.549 };
 const BASE_EMPLOYMENT = { low: 0.56, med: 0.47, high: 0.37 };
 const BASE_RVR = { low: 1.5, med: 2.4, high: 3.4 };
 
-/** Participants per release cohort (half programmed, half comparison). */
-const PER_COHORT = 800;
+/**
+ * Participants per release cohort, half programmed and half comparison.
+ * Five cohorts at this size put roughly 19,000 people through programming,
+ * matching TPW's published reach.
+ */
+const PER_COHORT = 7_620;
 
 async function main() {
   const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
@@ -106,7 +110,16 @@ async function main() {
     }
   }
 
-  const inserted = await db.insert(participants).values(pRows).returning({ id: participants.id });
+  // Drizzle builds one SQL node per value, so a single 38k-row insert overflows
+  // the call stack. Every bulk insert in this file goes in 1,000-row batches.
+  const inserted: { id: number }[] = [];
+  for (let i = 0; i < pRows.length; i += 1000)
+    inserted.push(
+      ...(await db
+        .insert(participants)
+        .values(pRows.slice(i, i + 1000))
+        .returning({ id: participants.id })),
+    );
 
   const eRows: ERow[] = [];
   const oRows: ORow[] = [];
@@ -116,7 +129,7 @@ async function main() {
     const { isComparison, risk, year } = meta[i];
 
     // Program effect strengthens slightly as delivery matures across cohorts.
-    const effect = isComparison ? 1 : 0.68 - 0.02 * (year - FIRST_COHORT_YEAR);
+    const effect = isComparison ? 1 : 0.55 - 0.02 * (year - FIRST_COHORT_YEAR);
 
     const releasedOn = iso(year, int(1, 12), int(1, 28));
 
@@ -129,7 +142,7 @@ async function main() {
       ]);
       for (let k = 0; k < n; k++) {
         const p = pick(prog);
-        const months = int(6, 24);
+        const months = int(5, 21);
         const startYear = year - (k === 0 ? 2 : 1);
         const startMonth = int(1, 12);
         const status = weighted([

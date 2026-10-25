@@ -17,14 +17,16 @@ export function SiteFooter() {
         </dl>
 
         <p className="measure mt-16 border-t border-rule pt-6 text-[13px] leading-relaxed text-muted">
-          {DISCLOSURE} Figures are generated from a modeled participant dataset built to
-          mirror published California outcome ranges, so the framework can be reviewed
-          before any agency data is loaded. Replacing the dataset with verified
-          department records changes the numbers on these pages and nothing else.
+          {DISCLOSURE} Participant records are modeled to reproduce the outcome rates TPW
+          and CDCR publish, so the framework can be reviewed before any agency data is
+          loaded. Member organizations would report real outcomes through the coalition&rsquo;s
+          existing channels; replacing the dataset changes the numbers on these pages and
+          nothing else.
         </p>
 
         <p className="mt-8 text-[13px] text-muted">
-          TPW Coalition · Transformative Programming Works
+          An independent prototype built for Transformative Programming Works. Not an
+          official TPW publication.
         </p>
       </div>
     </footer>

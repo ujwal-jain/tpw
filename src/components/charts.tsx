@@ -17,12 +17,13 @@ import {
 } from "recharts";
 import { PROGRAM_TYPE_LABELS } from "@/lib/constants";
 
-const AMBER = "#d97736";
-const MUTED = "#6e6a64";
-const RULE = "#dedad2";
-const INK = "#141414";
-const SPEND = "#4a453f";
-const CURSOR = "#efece6";
+const GREEN = "#74c088";
+const GOLD = "#efc75e";
+const MUTED = "#5f6360";
+const RULE = "#e3e6e1";
+const INK = "#0f0f0f";
+const SPEND = "#3b3f3c";
+const CURSOR = "#f4f7f3";
 
 const axis = {
   stroke: MUTED,
@@ -97,7 +98,7 @@ export function CompareLines({
           type="monotone"
           dataKey="tpw"
           name={tpwLabel}
-          stroke={AMBER}
+          stroke={GREEN}
           strokeWidth={2}
           dot={false}
         />
@@ -109,8 +110,9 @@ export function CompareLines({
 /** Unique participants enrolled, stacked by program type. */
 export function EnrollmentArea({ data }: { data: ({ year: number } & Record<string, number>)[] }) {
   const types = Object.keys(PROGRAM_TYPE_LABELS);
-  // A single amber ramp, dark to light — no second hue enters the palette.
-  const shades = ["#8d481e", "#b35f29", "#d97736", "#e9a269", "#f2cda8"];
+  // A single green ramp, dark to light. Enrollment is programming, so it stays
+  // in the intervention hue — gold is reserved for dollars.
+  const shades = ["#2f6b43", "#4a7c59", "#74c088", "#9fd3ad", "#c8e6d1"];
   return (
     <ResponsiveContainer width="100%" height={300}>
       <AreaChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
@@ -170,7 +172,7 @@ export function TypeBars({
         )}
         <Bar dataKey={dataKey} name={dataKey === "recidivism" ? "Recidivism" : "Employed at 90d"}>
           {rows.map((r) => (
-            <Cell key={r.type} fill={AMBER} />
+            <Cell key={r.type} fill={GREEN} />
           ))}
         </Bar>
       </BarChart>
@@ -192,7 +194,7 @@ export function SpendVsAverted({
         <YAxis {...axis} tickFormatter={money} width={64} />
         <Tooltip content={<Tip fmt={money} />} cursor={{ fill: CURSOR }} />
         <Bar dataKey="spend" name="Program spend" fill={SPEND} />
-        <Bar dataKey="avertedCost" name="Incarceration cost averted" fill={AMBER} />
+        <Bar dataKey="avertedCost" name="Incarceration cost averted" fill={GOLD} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -217,9 +219,9 @@ export function CumulativeNet({ data }: { data: { year: number; cumulativeNet: n
           type="monotone"
           dataKey="cumulativeNet"
           name="Cumulative net savings"
-          stroke={AMBER}
-          strokeWidth={2}
-          dot={{ r: 2.5, fill: AMBER, strokeWidth: 0 }}
+          stroke={GOLD}
+          strokeWidth={2.5}
+          dot={{ r: 2.5, fill: GOLD, strokeWidth: 0 }}
         />
       </LineChart>
     </ResponsiveContainer>

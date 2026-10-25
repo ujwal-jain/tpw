@@ -16,8 +16,8 @@ export function Kpi({
     <div className="border-t border-rule pt-5">
       <p className="label-xs">{label}</p>
       <p
-        className={`mt-3 text-[clamp(1.9rem,3.4vw,2.75rem)] leading-none tracking-[-0.035em] ${
-          accent ? "text-amber-ink" : "text-ink"
+        className={`mt-3 font-[family-name:var(--font-poppins)] text-[clamp(1.9rem,3.4vw,2.75rem)] leading-none font-bold tracking-[-0.03em] ${
+          accent ? "text-green-ink" : "text-ink"
         }`}
       >
         {value}
@@ -45,7 +45,9 @@ export function ChartBlock({
   return (
     <section className="border-t border-rule pt-8">
       <div className="flex flex-wrap items-baseline justify-between gap-x-10 gap-y-3">
-        <h2 className="text-[19px] tracking-[-0.02em] text-ink">{title}</h2>
+        <h2 className="font-[family-name:var(--font-poppins)] text-[19px] font-bold tracking-[-0.02em] text-ink">
+          {title}
+        </h2>
         {series && (
           <div className="flex gap-6">
             {series.map((s) => (

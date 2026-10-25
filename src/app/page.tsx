@@ -1,13 +1,45 @@
 import Link from "next/link";
 import { DualLedger } from "@/components/dual-ledger";
-import { PortraitCard, type Profile } from "@/components/portrait-card";
+import { Spotlight, type Profile } from "@/components/spotlight";
 import { AnchorList, type Anchor } from "@/components/anchor-list";
 import { Reveal } from "@/components/reveal";
-import { costModelByYear, costTotals, summary } from "@/lib/metrics";
+import { Wordmark } from "@/components/wordmark";
+import { CompareLines, EnrollmentArea, TypeBars } from "@/components/charts";
+import { ChartBlock, Kpi, KpiRow } from "@/components/ui";
+import {
+  costModelByYear,
+  costTotals,
+  employmentByYear,
+  enrollmentByYear,
+  outcomeByProgramType,
+  recidivismByYear,
+  rvrByYear,
+  summary,
+} from "@/lib/metrics";
 import { parseFilters } from "@/lib/filters";
-import { ANNUAL_INCARCERATION_COST, FIRST_COHORT_YEAR, LAST_COHORT_YEAR } from "@/lib/constants";
+import {
+  ANNUAL_INCARCERATION_COST,
+  CAMPAIGN_ANNUAL_DOLLARS,
+  DISCLOSURE,
+  FIRST_COHORT_YEAR,
+  LAST_COHORT_YEAR,
+  PRISONS_FULLY_SERVED,
+  PRISONS_TOTAL,
+  RECIDIVISM_WINDOW_YEARS,
+  SHARE_WHO_REENTER,
+} from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
+
+const GREEN = "#74c088";
+const MUTED = "#5f6360";
+
+const money = (v: number) =>
+  v >= 1_000_000_000
+    ? `$${(v / 1_000_000_000).toFixed(2)}B`
+    : v >= 1_000_000
+      ? `$${(v / 1_000_000).toFixed(0)}M`
+      : `$${Math.round(v).toLocaleString()}`;
 
 const PROFILES: Profile[] = [
   {
@@ -34,78 +66,132 @@ const PROFILES: Profile[] = [
       "I was an expense line item to the state for twelve years. Today, I supervise a crew of twelve and pay state taxes every April.",
     metrics: ["Union carpenter", "0 infractions during enrollment"],
   },
+  {
+    name: "Sergeant Ruiz",
+    slug: "ruiz",
+    kicker: "Inside the yard",
+    quote:
+      "Everyone argues about rehabilitation like it is charity. On my yard it is staffing. The housing units running programs are the units where my officers stop writing violations and start going home on time.",
+    metrics: [
+      "19 years in corrections",
+      "Programming yard supervisor",
+      "Write-ups down by more than half",
+    ],
+  },
 ];
 
 export default async function Home() {
   const filters = parseFilters({});
-  const [s, years] = await Promise.all([summary(filters), costModelByYear(filters)]);
+  const [s, years, recid, enroll, byType, rvr, employ] = await Promise.all([
+    summary(filters),
+    costModelByYear(filters),
+    recidivismByYear(filters),
+    enrollmentByYear(filters),
+    outcomeByProgramType(filters),
+    rvrByYear(filters),
+    employmentByYear(filters),
+  ]);
   const totals = costTotals(years, s.participants);
+
+  // Derive the gap from the rounded rates the page actually prints, so "21% vs
+  // 44%" never sits next to a gap of 24 points.
+  const gapPts =
+    Math.round(s.comparisonRecidivism) - Math.round(s.tpwRecidivism);
+
+  const compareSeries = [
+    { label: "With programming", color: GREEN },
+    { label: "Without programming", color: MUTED },
+  ];
 
   const anchors: Anchor[] = [
     {
       title: "Fiscal conservatism",
       body: `Every dollar invested in verifiable rehabilitation returns ${totals.roiMultiple.toFixed(1)} dollars in avoided re-arrest, re-adjudication, and re-incarceration costs across the cohorts tracked here.`,
       figure: `${totals.roiMultiple.toFixed(1)}×`,
-      href: "/roi",
+      href: "/savings-calculator",
     },
     {
       title: "Public safety first",
       body: `Participants return to custody at ${s.tpwRecidivism.toFixed(0)}% within three years against ${s.comparisonRecidivism.toFixed(0)}% for a risk-matched comparison group. Lower recidivism is fewer crimes committed and fewer people harmed.`,
-      figure: `−${s.gap.toFixed(0)}pts`,
-      href: "/dashboard",
+      figure: `−${gapPts}pts`,
+      href: "#evidence",
     },
     {
       title: "Workforce integration",
       body: "California faces severe labor shortages in the skilled trades. Rehabilitation pipelines move people directly into those gaps, verified at 90 days post-release.",
       figure: `+${s.employmentLift.toFixed(0)}pts`,
-      href: "/dashboard",
+      href: "#evidence",
     },
     {
       title: "Data transparency",
-      body: "Participants are tracked from enrollment through post-release milestones on a published schema, so every figure on this site can be audited rather than asserted.",
-      figure: `${s.participants.toLocaleString()}`,
-      href: "/dashboard",
+      body: "Participants are tracked from enrollment through post-release milestones on a published schema, so every figure on this page can be audited rather than asserted.",
+      figure: s.participants.toLocaleString(),
+      href: "#evidence",
     },
   ];
 
   return (
     <>
-      {/* Hero */}
-      <section className="border-b border-rule">
+      {/* 1 — Hero */}
+      <section className="border-b border-rule bg-green">
         <div className="shell flex min-h-[calc(100vh-4rem)] flex-col justify-center py-24">
-          <p className="eyebrow">A public policy crisis hidden in plain sight</p>
+          <Wordmark size="lg" />
 
-          <h1 className="display mt-8 max-w-[17ch]">
-            We spend ${ANNUAL_INCARCERATION_COST.toLocaleString()} a year to cage human
-            potential.{" "}
-            <span className="text-amber-ink">
-              We spend next to nothing to prepare it to come home.
-            </span>
+          <h1 className="display mt-10 max-w-[18ch]">
+            Transformative programming works. The budget doesn’t reflect it.
           </h1>
 
-          <p className="measure mt-10 text-[19px] leading-relaxed text-muted">
-            Nearly every incarcerated Californian will walk back out through the prison
-            gates. We can keep bankrolling a system designed to fail them — and us — or we
-            can invest in the programs that break the cycle for good.
+          <p className="measure mt-9 text-[19px] leading-relaxed text-ink/80">
+            California spends ${ANNUAL_INCARCERATION_COST.toLocaleString()} a year to hold
+            one person in a cell, and a fraction of one percent of that budget preparing
+            anyone to come home. {SHARE_WHO_REENTER}% of them come home anyway.
           </p>
 
           <div className="mt-12 flex flex-wrap items-center gap-x-10 gap-y-5">
-            <a
-              href="#ledger"
-              className="bg-amber px-7 py-3.5 text-[15px] font-medium text-ink transition-opacity hover:opacity-90"
-            >
-              Examine the ledger
-            </a>
             <Link
-              href="/roi"
-              className="border-b border-rule pb-0.5 text-[15px] text-muted transition-colors hover:border-amber hover:text-ink"
+              href="/savings-calculator"
+              className="bg-ink px-7 py-3.5 text-[15px] font-medium text-paper transition-opacity hover:opacity-90"
             >
-              Read the legislative cost model
+              Open the savings calculator
             </Link>
+            <a
+              href="#evidence"
+              className="border-b-2 border-ink/30 pb-0.5 text-[15px] text-ink transition-colors hover:border-ink"
+            >
+              See the outcome data
+            </a>
           </div>
         </div>
       </section>
 
+      {/* 2 — The failing system */}
+      <Reveal>
+        <section className="border-t border-rule">
+          <div className="shell section-y">
+            <p className="eyebrow">The failing system</p>
+            <h2 className="headline mt-5 max-w-[20ch]">
+              The status quo is not neutral. It is expensive and it does not work.
+            </h2>
+
+            <div className="mt-16 grid gap-12 md:grid-cols-3 md:gap-10">
+              <BigStat
+                value={`${SHARE_WHO_REENTER}%`}
+                label="of California's incarcerated citizens will reenter society"
+              />
+              <BigStat
+                value={`${s.comparisonRecidivism.toFixed(0)}%`}
+                label={`are reincarcerated within ${RECIDIVISM_WINDOW_YEARS} years of release without programming`}
+              />
+              <BigStat
+                value={`${PRISONS_FULLY_SERVED} of ${PRISONS_TOTAL}`}
+                label="California prisons is fully served by community programming today"
+              />
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* 3 — Dual ledger */}
       <Reveal>
         <DualLedger
           comparisonRecidivism={s.comparisonRecidivism}
@@ -115,22 +201,115 @@ export default async function Home() {
         />
       </Reveal>
 
-      {/* Faces behind the figures */}
+      {/* 4 — The evidence */}
+      <section id="evidence" className="scroll-mt-16 border-t border-rule">
+        <div className="shell section-y">
+          <p className="eyebrow">The evidence</p>
+          <h2 className="headline mt-5 max-w-[22ch]">
+            {s.participants.toLocaleString()} people, five release cohorts, one completed
+            follow-up window.
+          </h2>
+          <p className="measure mt-6 text-[17px] leading-relaxed text-muted">
+            Every participant is measured against a risk-matched comparison group drawn
+            from the same facilities, the same risk bands, and the same release years.
+            Recidivism is a {RECIDIVISM_WINDOW_YEARS}-year return-to-custody measure, and
+            only cohorts with a completed window appear here.
+          </p>
+
+          <div className="mt-16">
+            <KpiRow>
+              <Kpi
+                label="3-year recidivism"
+                value={`${s.tpwRecidivism.toFixed(0)}%`}
+                note={`${s.comparisonRecidivism.toFixed(0)}% without programming — a ${gapPts} point reduction.`}
+                accent
+              />
+              <Kpi
+                label="People served"
+                value={s.participants.toLocaleString()}
+                note={`${Math.round(s.creditDays / 365).toLocaleString()} years of earned milestone credit across these cohorts.`}
+              />
+              <Kpi
+                label="Program completion"
+                value={`${s.completionRate.toFixed(0)}%`}
+                note="Share of enrollments finished, rather than withdrawn or still open."
+              />
+              <Kpi
+                label="Net taxpayer savings"
+                value={money(totals.netSavings)}
+                note="Incarceration cost averted, less every dollar spent on programming."
+                accent
+              />
+            </KpiRow>
+          </div>
+
+          <div className="mt-24 space-y-24">
+            <ChartBlock
+              title="Return to custody within three years, by release cohort"
+              note="The gap between these two lines is the entire argument. Both groups come from the same facilities and the same risk bands; one received programming."
+              series={compareSeries}
+            >
+              <CompareLines data={recid} />
+            </ChartBlock>
+
+            <ChartBlock
+              title="People enrolled, by program type"
+              note="Unique participants touching each program type per cohort year."
+            >
+              <EnrollmentArea data={enroll} />
+            </ChartBlock>
+
+            <div className="grid gap-20 lg:grid-cols-2">
+              <ChartBlock
+                title="Recidivism by program type"
+                note="Dashed line marks the rate among people who received no programming."
+              >
+                <TypeBars
+                  data={byType}
+                  dataKey="recidivism"
+                  benchmark={s.comparisonRecidivism}
+                  benchmarkLabel="No programming"
+                />
+              </ChartBlock>
+
+              <ChartBlock
+                title="Employed within 90 days of release"
+                series={compareSeries}
+                note="Verified employment, participants against the comparison group."
+              >
+                <CompareLines data={employ} />
+              </ChartBlock>
+            </div>
+
+            <ChartBlock
+              title="Rule-violation reports per 100 people in custody"
+              note="In-custody safety is the metric corrections staff feel first. Lower is safer for everyone inside the facility."
+              series={compareSeries}
+            >
+              <CompareLines data={rvr} unit="rate" />
+            </ChartBlock>
+          </div>
+
+          <p className="mt-16 border-t border-rule pt-6 text-[13px] text-muted">
+            {DISCLOSURE}
+          </p>
+        </div>
+      </section>
+
+      {/* 5 — Spotlight */}
       <Reveal>
-        <section className="border-t border-rule">
+        <section className="border-t border-rule bg-band">
           <div className="shell section-y">
             <p className="eyebrow">Faces behind the figures</p>
             <h2 className="headline mt-5 max-w-[20ch]">
               Accountability isn’t just paid in time. It’s paid in purpose.
             </h2>
 
-            <div className="mt-20 grid gap-14 md:grid-cols-3 md:gap-10">
-              {PROFILES.map((p) => (
-                <PortraitCard key={p.slug} profile={p} />
-              ))}
+            <div className="mt-16">
+              <Spotlight profiles={PROFILES} />
             </div>
 
-            <p className="mt-16 border-t border-rule pt-6 text-[13px] text-muted">
+            <p className="mt-14 border-t border-rule pt-6 text-[13px] text-muted">
               Composite profiles drawn from program participant outcomes. Quotes and
               milestones illustrate patterns in the dataset; they do not describe an
               identifiable individual.
@@ -139,7 +318,7 @@ export default async function Home() {
         </section>
       </Reveal>
 
-      {/* The legislative imperative */}
+      {/* 6 — Legislative imperative */}
       <Reveal>
         <section className="border-t border-rule">
           <div className="shell section-y">
@@ -148,7 +327,7 @@ export default async function Home() {
               Recidivism is not an accident. It is a budget choice.
             </h2>
 
-            <p className="measure mt-10 text-[17px] leading-relaxed text-muted">
+            <p className="measure mt-9 text-[17px] leading-relaxed text-muted">
               Every legislative session, California debates criminal justice through the
               lens of fear or fiscal constraint. But the math is settled: starving
               evidence-backed in-custody rehabilitation while fully funding failed
@@ -166,8 +345,37 @@ export default async function Home() {
         </section>
       </Reveal>
 
-      {/* Conscience closer */}
-      <section className="border-t border-rule bg-band">
+      {/* 7 — The ask */}
+      <Reveal>
+        <section className="border-t border-rule bg-green">
+          <div className="shell section-y">
+            <p className="label-xs !text-ink/70">The ask</p>
+            <h2 className="display mt-6 max-w-[16ch]">One percent.</h2>
+
+            <p className="measure mt-9 text-[19px] leading-relaxed text-ink/80">
+              California currently directs about two tenths of one percent of its
+              corrections budget to rehabilitation programming. Raising that to one
+              percent — roughly {money(CAMPAIGN_ANNUAL_DOLLARS)} a year to community
+              organizations — is the entire ask. At the cost per participant measured on
+              this page, that funds{" "}
+              {Math.round(
+                CAMPAIGN_ANNUAL_DOLLARS / totals.costPerParticipant,
+              ).toLocaleString()}{" "}
+              people a year.
+            </p>
+
+            <Link
+              href="/savings-calculator"
+              className="mt-12 inline-block bg-ink px-7 py-3.5 text-[15px] font-medium text-paper transition-opacity hover:opacity-90"
+            >
+              Price it yourself →
+            </Link>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* 8 — Closer */}
+      <section className="border-t border-rule">
         <div className="shell section-y">
           <h2 className="headline max-w-[18ch]">
             Look at the ledger. Which side will you stand on?
@@ -188,7 +396,7 @@ export default async function Home() {
               </p>
               <a
                 href="mailto:policy@tpwcoalition.org?subject=Legislative%20briefing%20%26%20district%20data"
-                className="mt-6 inline-block border-b border-amber pb-0.5 text-[15px] text-ink"
+                className="mt-6 inline-block border-b-2 border-green pb-0.5 text-[15px] text-ink"
               >
                 Request a legislative briefing →
               </a>
@@ -201,7 +409,7 @@ export default async function Home() {
               </p>
               <a
                 href="mailto:partners@tpwcoalition.org?subject=Coalition%20partnership"
-                className="mt-6 inline-block border-b border-amber pb-0.5 text-[15px] text-ink"
+                className="mt-6 inline-block border-b-2 border-green pb-0.5 text-[15px] text-ink"
               >
                 Partner with the coalition →
               </a>
@@ -210,5 +418,14 @@ export default async function Home() {
         </div>
       </section>
     </>
+  );
+}
+
+function BigStat({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="border-t-2 border-ink pt-5">
+      <p className="figure-xl">{value}</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">{label}</p>
+    </div>
   );
 }

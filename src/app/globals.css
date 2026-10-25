@@ -1,20 +1,23 @@
 @import "tailwindcss";
 
 @theme {
-  /* Paper, not screen. Warm off-white so the amber reads as ink, not neon. */
-  --color-paper: #faf8f4;
-  --color-band: #f0ece5;
-  --color-panel: #e8e4dc;
-  --color-ink: #141414;
-  --color-muted: #6e6a64;
-  --color-rule: #dedad2;
+  --color-paper: #ffffff;
+  --color-ink: #0f0f0f;
 
-  /* Amber fills graphics (bars, lines, buttons). Amber-ink sets type — the
-     brighter value fails contrast below display sizes. */
-  --color-amber: #d97736;
-  --color-amber-ink: #a3511e;
+  /* Green is the intervention. Gold is money. Ink is the status quo.
+     A gold bar never means a program; a green bar never means a dollar. */
+  --color-green: #74c088;
+  --color-green-ink: #2f6b43;
+  --color-forest: #4a7c59;
+  --color-gold: #efc75e;
+  --color-gold-ink: #8a6412;
+
+  --color-muted: #5f6360;
+  --color-rule: #e3e6e1;
+  --color-band: #f4f7f3;
 
   --font-sans: var(--font-inter-tight), system-ui, sans-serif;
+  --font-display: var(--font-poppins), var(--font-inter-tight), sans-serif;
 
   /* Radius is zero by design. Nothing on this site is a bubble. */
   --radius-none: 0px;
@@ -52,31 +55,35 @@ th,
 }
 
 @utility display {
-  font-size: clamp(2.75rem, 6vw, 5.5rem);
-  letter-spacing: -0.035em;
-  line-height: 0.95;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5.4vw, 5rem);
+  letter-spacing: -0.03em;
+  line-height: 0.98;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 @utility headline {
-  font-size: clamp(2rem, 3.6vw, 3.25rem);
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 3.4vw, 3rem);
+  letter-spacing: -0.025em;
+  line-height: 1.06;
+  font-weight: 700;
 }
 
 @utility figure-xl {
+  font-family: var(--font-display);
   font-size: clamp(2.5rem, 5vw, 4.25rem);
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   line-height: 1;
-  font-weight: 500;
+  font-weight: 700;
 }
 
 @utility eyebrow {
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--color-amber-ink);
+  color: var(--color-green-ink);
   font-weight: 600;
 }
 
@@ -99,10 +106,10 @@ th,
 }
 
 @utility section-y {
-  padding-block: clamp(96px, 14vh, 180px);
+  padding-block: clamp(88px, 12vh, 160px);
 }
 
-/* The one permitted animation. */
+/* Scroll-in fade. */
 .reveal {
   opacity: 0;
   transform: translateY(8px);
@@ -115,6 +122,11 @@ th,
   transform: none;
 }
 
+/* Spotlight crossfade — the one other permitted motion. */
+.fade-slot {
+  transition: opacity 450ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -124,14 +136,17 @@ th,
     transform: none;
     transition: none;
   }
+  .fade-slot {
+    transition: none;
+  }
 }
 
 ::selection {
-  background: var(--color-amber);
+  background: var(--color-green);
   color: var(--color-ink);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-amber-ink);
+  outline: 2px solid var(--color-green-ink);
   outline-offset: 3px;
 }

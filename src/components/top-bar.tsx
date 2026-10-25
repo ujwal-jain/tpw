@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LiveCostTicker } from "./live-cost-ticker";
+import { Wordmark } from "./wordmark";
 
 const NAV = [
-  { href: "/", label: "Ledger" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/roi", label: "Cost & ROI" },
+  { href: "/", label: "The Case" },
+  { href: "/savings-calculator", label: "Savings Calculator" },
 ];
 
 export function TopBar() {
@@ -16,8 +16,8 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-50 border-b border-rule bg-paper">
       <div className="shell flex h-16 items-center justify-between gap-8">
-        <Link href="/" className="label-xs !text-ink whitespace-nowrap">
-          TPW Coalition
+        <Link href="/" aria-label="TPW — home">
+          <Wordmark />
         </Link>
 
         <nav className="flex items-center gap-7 text-[14px]">
@@ -30,7 +30,7 @@ export function TopBar() {
                 href={item.href}
                 className={
                   active
-                    ? "text-ink border-b border-amber pb-0.5"
+                    ? "border-b-2 border-green pb-0.5 text-ink"
                     : "text-muted transition-colors hover:text-ink"
                 }
               >

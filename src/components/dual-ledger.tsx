@@ -59,7 +59,7 @@ export function DualLedger({
             <p className="mt-6 text-[14px] text-muted">
               Annual cost per program participant
             </p>
-            <p className="figure-xl mt-2 text-amber-ink">$3,500–5,000</p>
+            <p className="figure-xl mt-2 text-green-ink">$3,500–5,000</p>
 
             <p className="label-xs mt-12">The return</p>
             <dl className="mt-4">
@@ -93,13 +93,13 @@ export function DualLedger({
 
           <div className="mt-6 space-y-5">
             <div>
-              <div className="h-5 w-full bg-[#4a453f]" />
+              <div className="h-5 w-full bg-[#3b3f3c]" />
               <p className="mt-2 text-[13px] text-muted">
                 Incarceration — {money(ANNUAL_INCARCERATION_COST)}
               </p>
             </div>
             <div>
-              <div className="h-5 bg-amber" style={{ width: `${share}%` }} />
+              <div className="h-5 bg-green" style={{ width: `${share}%` }} />
               <p className="mt-2 text-[13px] text-muted">
                 Programming — {money(PROGRAM_COST_MID)} ·{" "}
                 <span className="text-ink">{share.toFixed(0)}% of the cost of a cell</span>
@@ -108,10 +108,10 @@ export function DualLedger({
           </div>
 
           <Link
-            href="/roi"
-            className="mt-10 inline-block border-b border-amber pb-0.5 text-[15px] text-ink"
+            href="/savings-calculator"
+            className="mt-10 inline-block border-b-2 border-green pb-0.5 text-[15px] text-ink"
           >
-            See the full cost model →
+            Open the savings calculator →
           </Link>
         </div>
       </div>
@@ -122,7 +122,7 @@ export function DualLedger({
 function Row({ k, v, accent }: { k: string; v: string; accent?: boolean }) {
   return (
     <div className="grid grid-cols-[5.5rem_1fr] gap-5 border-t border-rule py-4">
-      <dt className={`text-[17px] ${accent ? "text-amber-ink" : "text-muted"}`}>{k}</dt>
+      <dt className={`text-[17px] ${accent ? "text-green-ink" : "text-muted"}`}>{k}</dt>
       <dd className="text-[15px] leading-relaxed text-muted">{v}</dd>
     </div>
   );
