@@ -1,26 +1,137 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Paper, not screen. Warm off-white so the amber reads as ink, not neon. */
+  --color-paper: #faf8f4;
+  --color-band: #f0ece5;
+  --color-panel: #e8e4dc;
+  --color-ink: #141414;
+  --color-muted: #6e6a64;
+  --color-rule: #dedad2;
+
+  /* Amber fills graphics (bars, lines, buttons). Amber-ink sets type — the
+     brighter value fails contrast below display sizes. */
+  --color-amber: #d97736;
+  --color-amber-ink: #a3511e;
+
+  --font-sans: var(--font-inter-tight), system-ui, sans-serif;
+
+  /* Radius is zero by design. Nothing on this site is a bubble. */
+  --radius-none: 0px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
+  --radius-3xl: 2px;
+  --radius-full: 2px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  background: var(--color-paper);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Figures are the argument — never let them render proportional. */
+table,
+tbody,
+td,
+th,
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility display {
+  font-size: clamp(2.75rem, 6vw, 5.5rem);
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  font-weight: 500;
+}
+
+@utility headline {
+  font-size: clamp(2rem, 3.6vw, 3.25rem);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-weight: 500;
+}
+
+@utility figure-xl {
+  font-size: clamp(2.5rem, 5vw, 4.25rem);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-weight: 500;
+}
+
+@utility eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-amber-ink);
+  font-weight: 600;
+}
+
+@utility label-xs {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+@utility measure {
+  max-width: 68ch;
+}
+
+@utility shell {
+  max-width: 1180px;
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+@utility section-y {
+  padding-block: clamp(96px, 14vh, 180px);
+}
+
+/* The one permitted animation. */
+.reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 500ms ease-out,
+    transform 500ms ease-out;
+}
+.reveal[data-shown="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+::selection {
+  background: var(--color-amber);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-amber-ink);
+  outline-offset: 3px;
 }
